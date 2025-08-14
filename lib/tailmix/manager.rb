@@ -3,6 +3,7 @@
 require_relative "resolver"
 require_relative "part"
 require_relative "utils"
+require_relative "action"
 
 module Tailmix
   class Manager
@@ -32,6 +33,33 @@ module Tailmix
 
     def respond_to_missing?(method_name, include_private = false)
       @part_objects.key?(method_name.to_sym) || super
+    end
+
+    def actions
+      @action_proxy ||= ActionProxy.new(self, @schema)
+    end
+
+    class ActionProxy
+      def initialize(manager, schema)
+        @manager = manager
+        @schema = schema
+      end
+
+      def method_missing(method_name, *args, &block)
+        action_name = method_name.to_sym
+
+        if @schema.actions.key?(action_name)
+          action_definition = @schema.actions[action_name]
+
+          Action.new(@manager, **action_definition)
+        else
+          super
+        end
+      end
+
+      def respond_to_missing?(method_name, include_private = false)
+        @schema.actions.key?(method_name.to_sym) || super
+      end
     end
 
     private

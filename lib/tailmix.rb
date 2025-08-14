@@ -8,6 +8,7 @@ require_relative "tailmix/part"
 require_relative "tailmix/dimension"
 require_relative "tailmix/element"
 require_relative "tailmix/utils"
+require_relative "tailmix/action"
 
 module Tailmix
   def self.included(base)
