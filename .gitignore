@@ -6,3 +6,7 @@
 /pkg/
 /spec/reports/
 /tmp/
+.idea
+/.idea/
+# Ignore RSpec's run status file
+.rspec_status
