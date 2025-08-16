@@ -1,24 +1,56 @@
 # frozen_string_literal: true
 
-require_relative "dimension"
+require "set"
 
 module Tailmix
   class Element
-    attr_reader :base_classes, :dimensions
 
-    def initialize(base_classes, &block)
-      @base_classes = base_classes
-      @dimensions = {}
-      instance_eval(&block) if block_given?
+    def initialize(initial_classes = [], definition:)
+      @classes = Set.new(initial_classes)
+      @definition = definition
     end
 
-    def method_missing(method_name, &block)
-      dimension_name = method_name.to_sym
-      @dimensions[dimension_name] = Dimension.new(&block)
+    def add(new_classes)
+      @classes.merge(parse_classes(new_classes))
+      self # chaining, e.g. ui.container.add(...).remove(...)
     end
 
-    def respond_to_missing?(method_name, include_private = false)
-      true
+    def remove(classes_to_remove)
+      @classes.subtract(parse_classes(classes_to_remove))
+      self
+    end
+
+    def toggle(classes_to_toggle)
+      parse_classes(classes_to_toggle).each do |klass|
+        @classes.include?(klass) ? @classes.delete(klass) : @classes.add(klass)
+      end
+      self
+    end
+
+    def stimulus(&block)
+      builder = StimulusBuilder.new(@definition, element: self)
+      yield builder
+      builder.to_h
+    end
+
+    def to_s
+      @classes.to_a.join(" ")
+    end
+
+    def to_h
+      { class: to_s }
+    end
+
+    def inspect
+      "#<Tailmix::Element classes=\"#{to_s}\">"
+    end
+
+    private
+
+    def parse_classes(input)
+      return input.split if input.is_a?(String)
+
+      Array(input).flatten.map(&:to_s)
     end
   end
 end
