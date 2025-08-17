@@ -27,3 +27,5 @@ module Tailmix
     Runtime.new(self.class.tailmix_definition, options)
   end
 end
+
+require_relative "tailmix/engine" if defined?(Rails)
