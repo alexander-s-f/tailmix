@@ -7,6 +7,26 @@ require_relative "tailmix/runtime"
 module Tailmix
   class Error < StandardError; end
 
+  class << self
+    attr_writer :configuration
+  end
+
+  def self.configuration
+    @configuration ||= Configuration.new
+  end
+
+  def self.configure
+    yield(configuration)
+  end
+
+  class Configuration
+    attr_accessor :debug_attribute
+
+    def initialize
+      @debug_attribute = nil
+    end
+  end
+
   module ClassMethods
     def tailmix(&block)
       context = Definition::ContextBuilder.new
