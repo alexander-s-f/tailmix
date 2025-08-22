@@ -6,7 +6,7 @@ module Tailmix
       Rails.application.config.assets.paths << Engine.root.join("app/javascript")
     end
 
-    PRECOMPILE_ASSETS = %w( index.js runner.js )
+    PRECOMPILE_ASSETS = %w[ index.js runner.js ]
 
     initializer "tailmix.assets" do
       if Rails.application.config.respond_to?(:assets)
