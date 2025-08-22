@@ -31,43 +31,129 @@ Or install it yourself as: `$ gem install tailmix`
 You define a component's style "schema" using the `tailmix` DSL within your class.
 
 * `element :name, "base classes" do ... end`: Defines a "part" of your component. Every component has at least one element.
-* `dimension_name do ... end` (e.g., `state do`, `size do`): Defines a variant "dimension". The name can be anything you choose.
+* `dimension :name do ... end` (e.g., `state do`, `size do`): Defines a variant "dimension".
 * `option :name, "classes", default: true`: Defines a specific option within a dimension and its corresponding CSS classes. One option per dimension can be marked as the default.
 
 ### Full Example of the DSL
 
 ```ruby
-class MyButtonComponent
+class ModalComponent
   include Tailmix
+  attr_reader :ui
 
   tailmix do
-    # Define the main element and its base classes
-    element :button, "inline-flex items-center font-medium rounded-md" do
-      # Define the 'size' dimension
-      size do
-        option :sm, "px-2.5 py-1.5 text-xs", default: true
-        option :md, "px-3 py-2 text-sm"
-        option :lg, "px-4 py-2 text-base"
+    element :base, "fixed inset-0 z-50 flex items-center justify-center" do
+      dimension :open, default: true do
+        option true, "visible opacity-100"
+        option false, "invisible opacity-0"
       end
+      stimulus.controller("modal")
+    end
 
-      # Define the 'intent' dimension
-      intent do
-        option :primary, "bg-blue-600 text-white hover:bg-blue-700", default: true
-        option :secondary, "bg-gray-200 text-gray-800 hover:bg-gray-300"
-        option :danger, "bg-red-600 text-white hover:bg-red-700"
+    element :overlay, "fixed inset-0 bg-black/50 transition-opacity" do
+      stimulus.context("modal").action("click->modal#close")
+    end
+
+    element :panel, "relative bg-white rounded-lg shadow-xl transition-transform transform" do
+      dimension :size, default: :md do
+        option :sm, "w-full max-w-sm p-4"
+        option :md, "w-full max-w-md p-6"
+        option :lg, "w-full max-w-lg p-8"
+      end
+      stimulus.context("modal").target("panel")
+    end
+
+    element :title, "text-lg font-semibold text-gray-900"
+    element :body, "mt-2 text-sm text-gray-600"
+    element :close_button, "absolute top-2 right-2 p-1 text-gray-400 rounded-full hover:bg-gray-100 hover:text-gray-600" do
+      stimulus.context("modal").action("click->modal#close")
+    end
+
+    element :footer, "mt-4 pt-4 border-t flex justify-end"
+    element :confirm_button, "relative inline-flex items-center px-4 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700" do
+      stimulus.controller("form-submission")
+              .action("click->form-submission#submit")
+              .action_payload(:enter_pending_state, as: :pending_data)
+    end
+
+    element :spinner, "absolute inset-0 flex items-center justify-center hidden"
+
+    action :lock, method: :add do
+      element :close_button do
+        classes "hidden"
+      end
+      element :panel do
+        data locked: true, reason: "processing"
       end
     end
 
-    # Define another element, like an icon
-    element :icon, "inline-block" do
-      size do
-        option :sm, "h-4 w-4"
-        option :md, "h-5 w-5", default: true
-        option :lg, "h-6 w-6"
+    action :enter_pending_state, method: :add do
+      element :confirm_button do
+        classes "opacity-75 cursor-not-allowed"
+      end
+      element :spinner do
+        classes "flex"
       end
     end
   end
-  # ...
+
+  def initialize(size: :md, open: false)
+    @ui = tailmix(size: size, open: open)
+  end
+
+  def lock!
+    @ui.action(:lock).apply!
+  end
+end
+```
+
+```ruby
+modal = ModalComponent.new(size: :lg, open: true)
+
+# 
+ui = modal.ui
+
+# actions:
+modal.lock!
+# or
+ui.action(:lock).apply!
+
+# operations:
+ui.panel.add("hidden")
+
+ui.overlay.toggle("hidden")
+# or
+ui.overlay.classes.toggle("hidden")
+```
+
+```ruby
+# Arbre view: _modal_example.arb
+
+div ui.base do
+  div ui.overlay
+
+  div ui.panel do
+    button ui.close_button do
+      span "Close"
+    end
+
+    h3 ui.title do
+      "Payment Successful"
+    end
+
+    div ui.body do
+      "Your payment has been successfully submitted. We’ve sent you an email with all of the details of your order."
+    end
+
+    div ui.footer do
+      button ui.confirm_button do
+        span "Confirm Purchase"
+        div ui.spinner do
+          span "Loading..."
+        end
+      end
+    end
+  end
 end
 ```
 
@@ -77,72 +163,11 @@ end
 
 Inside your component, call the `tailmix` helper to create an interactive style manager. You can pass initial variants to it.
 
-```ruby
-class MyButtonComponent
-  # ... (tailmix DSL from above)
-
-  attr_reader :classes
-
-  def initialize(intent: :primary, size: :md)
-    # The `tailmix` helper creates and returns the manager object
-    @classes = tailmix(intent: intent, size: size)
-  end
-  
-  def render
-    # The manager's methods map to your elements.
-    # Ruby's `to_s` is called implicitly when rendering.
-    "<button class='#{@classes.button}'>
-       <span class='#{@classes.icon}'></span>
-       Click me
-     </button>"
-  end
-end
-
-# Renders a medium primary button by default
-button = MyButtonComponent.new
-button.render
-
-# Renders a small danger button
-button = MyButtonComponent.new(intent: :danger, size: :sm)
-button.render
-```
-
-### 2. Dynamic & Imperative Usage
-
-This is where `tailmix` truly shines. The `@classes` object is a live manager that you can modify. This is perfect for server-side re-rendering with Hotwire/Turbo.
-
-```ruby
-class MyButtonComponent
-  # ...
-
-  # A method that might be called during a Turbo Stream update
-  def set_loading_state!
-    # The `combine` method updates the declarative state
-    @classes.combine(intent: :secondary)
-    
-    # The imperative API allows for fine-grained control
-    @classes.button.add("cursor-wait opacity-75")
-    @classes.icon.add("animate-spin")
-  end
-
-  def remove_loading_state!
-    @classes.combine(intent: :primary) # Revert to original intent
-    @classes.button.remove("cursor-wait opacity-75")
-    @classes.icon.remove("animate-spin")
-  end
-end
-
-button = MyButtonComponent.new(intent: :primary)
-button.set_loading_state!
-button.render # Renders the button in a loading state
-
-button.remove_loading_state!
-button.render # Renders the button back in its primary state
-```
+... (more to come)
 
 ### 3. The Bridge to JavaScript (Stimulus)
 
-While `tailmix` is a server-side library, it enables clean integration with JavaScript controllers like Stimulus by providing the "source of truth" for classes. You can create a helper to export variants to `data-` attributes, keeping your JS free of hardcoded style strings.
+While `tailmix` is a server-side library, it enables clean integration with JavaScript controllers like Stimulus by providing the "source of truth" for classes.
 
 ## Contributing
 
