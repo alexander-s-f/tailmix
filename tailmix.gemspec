@@ -5,8 +5,8 @@ require_relative "lib/tailmix/version"
 Gem::Specification.new do |spec|
   spec.name = "tailmix"
   spec.version = Tailmix::VERSION
-  spec.authors = ["Alexander Fokin"]
-  spec.email = ["alexander.s.fokin@gmail.com"]
+  spec.authors = [ "Alexander Fokin" ]
+  spec.email = [ "alexander.s.fokin@gmail.com" ]
 
   spec.summary = "A declarative class manager for Ruby UI components."
   spec.description = "Tailmix provides a powerful DSL to define component style schemas, including variants and parts. It enables clean, co-located style management and offers a rich runtime API for dynamic class manipulation, perfect for Hotwire/Turbo and utility-first CSS."
@@ -30,7 +30,7 @@ Gem::Specification.new do |spec|
   end
   spec.bindir = "exe"
   spec.executables = spec.files.grep(%r{\Aexe/}) { |f| File.basename(f) }
-  spec.require_paths = ["lib"]
+  spec.require_paths = [ "lib" ]
 
   spec.add_development_dependency "bundler"
   spec.add_development_dependency "rake", "~> 13.0"
