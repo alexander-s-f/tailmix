@@ -1,20 +1,16 @@
 # frozen_string_literal: true
 
-module Tailmix
-  module Definition
-    module Contexts
-      class DimensionBuilder
-        attr_reader :options
+class DimensionBuilder
+  attr_reader :options
 
-        def initialize
-          @options = { options: {}, default: nil }
-        end
+  def initialize(default: nil)
+    @options = { options: {}, default: default }
+  end
 
-        def option(value, classes, default: false)
-          @options[:options][value] = classes.split
-          @options[:default] = value if default
-        end
-      end
+  def option(value, classes, default: false)
+    @options[:options][value] = classes.split
+    if default && @options[:default].nil?
+      @options[:default] = value
     end
   end
 end

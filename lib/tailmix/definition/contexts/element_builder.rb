@@ -21,8 +21,8 @@ module Tailmix
           @stimulus_builder ||= StimulusBuilder.new
         end
 
-        def dimension(name, &block)
-          dimension = DimensionBuilder.new
+        def dimension(name, default: nil, &block)
+          dimension = DimensionBuilder.new(default: default)
           dimension.instance_eval(&block)
           @dimensions[name.to_sym] = dimension.options
         end
