@@ -4,28 +4,24 @@ module Tailmix
   module Definition
     module Contexts
       module Actions
-        # This builder captures the desired mutations for a single element
-        # within an action's definition.
         class ElementBuilder
-          def initialize
-            @mutations = {}
+          def initialize(default_method)
+            @default_method = default_method
+            @commands = []
           end
 
-          # Defines class mutations.
-          # @param classes_string [String]
-          def classes(classes_string)
-            @mutations[:class] = classes_string
+          def classes(classes_string, method: @default_method)
+            @commands << { field: :classes, method: method, payload: classes_string }
           end
 
-          # Defines data attribute mutations.
-          # @param data_hash [Hash]
           def data(data_hash)
-            @mutations[:data] = data_hash
+            operation = data_hash.delete(:method) || @default_method
+
+            @commands << { field: :data, method: operation, payload: data_hash }
           end
 
-          # Returns the captured mutations as a hash.
-          def build_mutations
-            @mutations
+          def build_commands
+            @commands
           end
         end
       end

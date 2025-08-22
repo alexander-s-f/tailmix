@@ -25,10 +25,15 @@ module Tailmix
       end
 
       def apply!
-        definition.mutations.each do |element_name, mutations_hash|
+        # `definition.mutations`  { element_name => [commands] }
+        definition.mutations.each do |element_name, commands|
           attributes_object = context.live_attributes_for(element_name)
+          next unless attributes_object
 
-          attributes_object.merge!(mutations_hash)
+          commands.each do |command|
+            target_field = attributes_object.public_send(command[:field])
+            target_field.public_send(command[:method], command[:payload])
+          end
         end
         context
       end

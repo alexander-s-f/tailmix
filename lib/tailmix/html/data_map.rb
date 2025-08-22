@@ -34,6 +34,7 @@ module Tailmix
         end
         self
       end
+      alias_method :add, :merge!
 
       def merge(other_data)
         dup.merge!(other_data)
@@ -48,6 +49,21 @@ module Tailmix
             @data[key].add(token) unless token.empty?
           end
         end
+      end
+
+      def remove(other_data)
+        (other_data || {}).each do |key, _|
+          @data.delete(key.to_sym)
+        end
+        self
+      end
+
+      def toggle(other_data)
+        (other_data || {}).each do |key, value|
+          key = key.to_sym
+          @data[key] == value ? @data.delete(key) : @data[key] = value
+        end
+        self
       end
 
       def to_h
