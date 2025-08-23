@@ -5,7 +5,7 @@ module Tailmix
     module Stimulus
       class Compiler
 
-        def self.call(definition:, data_map:, root_definition:)
+        def self.call(definition:, data_map:, root_definition:, component:)
           (definition.definitions || []).each do |rule|
             builder = data_map.stimulus
 
@@ -30,9 +30,21 @@ module Tailmix
             when :target
               builder.context(rule[:controller]).target(rule[:name])
             when :value
-              if rule[:source][:type] == :literal
-                builder.context(rule[:controller]).value(rule[:name], rule[:source][:content])
+              source = rule[:source]
+
+              resolved_value = case source[:type]
+              when :literal
+                source[:content]
+              when :proc
+                source[:content].call
+              when :method
+                component.public_send(source[:content])
+              else
+                # type code here
               end
+
+              builder.context(rule[:controller]).value(rule[:name], resolved_value)
+
             when :param
               builder.context(rule[:controller]).param(rule[:params])
             when :action_payload

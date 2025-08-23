@@ -52,7 +52,8 @@ module Tailmix
         Stimulus::Compiler.call(
           definition: element_def.stimulus,
           data_map: data_map,
-          root_definition: @definition
+          root_definition: @definition,
+          component: @component_instance
         )
 
         HTML::Attributes.new(
