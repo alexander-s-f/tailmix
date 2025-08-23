@@ -3,6 +3,7 @@
 require_relative "tailmix/version"
 require_relative "tailmix/definition"
 require_relative "tailmix/runtime"
+require_relative "tailmix/dev/tools"
 
 module Tailmix
   class Error < StandardError; end
@@ -46,6 +47,10 @@ module Tailmix
 
     def tailmix_facade_class
       @_tailmix_facade_class ||= Runtime::FacadeBuilder.build(tailmix_definition)
+    end
+
+    def dev
+      Dev::Tools.new(self)
     end
   end
 
