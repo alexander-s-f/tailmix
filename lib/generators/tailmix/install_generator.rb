@@ -8,11 +8,11 @@ module Tailmix
       def add_javascript
         say "Pinning Tailmix JavaScript", :green
         append_to_file "config/importmap.rb", <<~RUBY
-          pin "tailmix/runner", to: "tailmix/runner.js"
+          pin "tailmix", to: "tailmix/index.js"
         RUBY
 
         say "Adding Tailmix to asset manifest", :green
-        append_to_file "app/assets/config/manifest.js", "\n//= link tailmix/runner.js\n"
+        append_to_file "app/assets/config/manifest.js", "\n//= link tailmix/index.js.js\n"
       end
     end
   end

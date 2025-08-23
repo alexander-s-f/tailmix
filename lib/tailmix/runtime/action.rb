@@ -43,12 +43,7 @@ module Tailmix
       def to_h
         {
           method: definition.action,
-          elements: definition.mutations.transform_values do |mutations|
-            result = {}
-            result[:classes] = mutations[:class] if mutations[:class]
-            result[:data] = mutations[:data] if mutations[:data]
-            result
-          end
+          mutations: definition.mutations
         }
       end
     end

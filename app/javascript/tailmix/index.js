@@ -1,3 +1,7 @@
-import { TailmixRunner } from "./runner"
+import { runFromStimulus } from './stimulus_adapter';
 
-export { TailmixRunner }
+const Tailmix = {
+    run: runFromStimulus
+};
+
+export default Tailmix;
