@@ -13,8 +13,20 @@ module Tailmix
             when :controller
               builder.controller(rule[:name])
             when :action
-              actions_string = rule[:actions].is_a?(Hash) ? rule[:actions].map { |k, v| "#{k}->#{v}" }.join(" ") : rule[:actions]
-              builder.context(rule[:controller]).action(actions_string)
+              action_data = rule[:data]
+              controller_name = rule[:controller]
+
+              action_string = case action_data[:type]
+              when :raw
+                action_data[:content]
+              when :hash
+                action_data[:content].map { |event, method| "#{event}->#{controller_name}##{method}" }.join(" ")
+              when :tuple
+                event, method = action_data[:content]
+                "#{event}->#{controller_name}##{method}"
+              end
+
+              builder.context(controller_name).action(action_string)
             when :target
               builder.context(rule[:controller]).target(rule[:name])
             when :value

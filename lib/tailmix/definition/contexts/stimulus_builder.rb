@@ -29,9 +29,19 @@ module Tailmix
           self
         end
 
-        def action(actions_hash)
+        def action(*args)
           ensure_context!
-          @definitions << { type: :action, controller: @current_context, actions: actions_hash }
+
+          action_data = case args.first
+          when String
+            { type: :raw, content: args.first }
+          when Hash
+            { type: :hash, content: args.first }
+          else
+            { type: :tuple, content: args }
+          end
+
+          @definitions << { type: :action, controller: @current_context, data: action_data }
           self
         end
 
