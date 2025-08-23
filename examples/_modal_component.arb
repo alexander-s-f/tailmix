@@ -1,0 +1,36 @@
+# Arbre view:
+
+modal = SuperModalComponent.new(size: :lg, open: true)
+
+# modal.lock!
+ui = modal.ui
+
+div ui.base do
+  div ui.overlay
+  div ui.open do
+    "open"
+  end
+
+  div ui.panel do
+    button ui.close_button do
+      span "Close"
+    end
+
+    h3 ui.title do
+      "Payment Successful"
+    end
+
+    div ui.body do
+      "Your payment has been successfully submitted. We’ve sent you an email with all of the details of your order."
+    end
+
+    div ui.footer do
+      button ui.confirm_button do
+        span "Confirm Purchase"
+        div ui.spinner do
+          span "Loading..."
+        end
+      end
+    end
+  end
+end
