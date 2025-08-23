@@ -27,10 +27,11 @@ module Tailmix
         final_attrs[:class] = class_string unless class_string.empty?
         final_attrs.merge!(self[:data].to_h)
 
-        debug_attr_name = Tailmix.configuration&.debug_attribute
-        if debug_attr_name && defined?(Rails) && Rails.env.development?
-          final_attrs[debug_attr_name] = @element_name
+        selector_attr = Tailmix.configuration.element_selector_attribute
+        if selector_attr && @element_name
+          final_attrs[selector_attr] = @element_name
         end
+
         final_attrs
       end
       alias_method :to_hash, :to_h

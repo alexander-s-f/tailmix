@@ -20,10 +20,10 @@ module Tailmix
   end
 
   class Configuration
-    attr_accessor :debug_attribute
+    attr_accessor :element_selector_attribute
 
     def initialize
-      @debug_attribute = nil
+      element_selector_attribute = nil
     end
   end
 
