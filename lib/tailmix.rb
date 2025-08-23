@@ -29,9 +29,15 @@ module Tailmix
 
   module ClassMethods
     def tailmix(&block)
-      context = Definition::ContextBuilder.new
-      context.instance_eval(&block)
-      @tailmix_definition = context.build_definition
+      child_context = Definition::ContextBuilder.new
+      child_context.instance_eval(&block)
+      child_definition = child_context.build_definition
+
+      if superclass.respond_to?(:tailmix_definition) && (parent_definition = superclass.tailmix_definition)
+        @tailmix_definition = Definition::Merger.call(parent_definition, child_definition)
+      else
+        @tailmix_definition = child_definition
+      end
     end
 
     def tailmix_definition
