@@ -3,6 +3,7 @@
 require_relative "attribute_builder"
 require_relative "stimulus_builder"
 require_relative "dimension_builder"
+require_relative "variant_builder"
 
 module Tailmix
   module Definition
@@ -11,6 +12,7 @@ module Tailmix
         def initialize(name)
           @name = name
           @dimensions = {}
+          @compound_variants = []
         end
 
         def attributes
@@ -27,12 +29,24 @@ module Tailmix
           @dimensions[name.to_sym] = builder.build_dimension
         end
 
+        def compound_variant(on:, &block)
+          builder = VariantBuilder.new
+          builder.instance_eval(&block)
+
+          @compound_variants << {
+            on: on,
+            modifications: builder.build_variant
+          }
+        end
+
+
         def build_definition
           Definition::Result::Element.new(
             name: @name,
             attributes: attributes.build_definition,
             stimulus: stimulus.build_definition,
-            dimensions: @dimensions.freeze
+            dimensions: @dimensions.freeze,
+            compound_variants: @compound_variants.freeze
           )
         end
       end

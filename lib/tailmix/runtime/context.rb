@@ -46,7 +46,7 @@ module Tailmix
           { class: element_def.attributes.classes },
           element_name: element_def.name,
           variant_string: variant_string,
-        )
+          )
 
         element_def.dimensions.each do |name, dim_def|
           value = dimensions.fetch(name, dim_def[:default])
@@ -58,6 +58,21 @@ module Tailmix
           attributes.classes.add(variant_def.classes)
           attributes.data.merge!(variant_def.data)
           attributes.aria.merge!(variant_def.aria)
+        end
+
+        element_def.compound_variants.each do |cv|
+          conditions = cv[:on]
+          modifications = cv[:modifications]
+
+          match = conditions.all? do |key, value|
+            dimensions[key] == value
+          end
+
+          if match
+            attributes.classes.add(modifications.classes)
+            attributes.data.merge!(modifications.data)
+            attributes.aria.merge!(modifications.aria)
+          end
         end
 
         Stimulus::Compiler.call(

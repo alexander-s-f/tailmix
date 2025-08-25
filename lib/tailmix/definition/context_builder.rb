@@ -2,6 +2,7 @@
 
 require_relative "contexts/action_builder"
 require_relative "contexts/element_builder"
+require_relative "contexts/variant_builder"
 
 module Tailmix
   module Definition
@@ -31,7 +32,7 @@ module Tailmix
       def build_definition
         Definition::Result::Context.new(
           elements: @elements.transform_values(&:build_definition).freeze,
-          actions: @actions.transform_values(&:build_definition).freeze
+          actions: @actions.transform_values(&:build_definition).freeze,
         )
       end
     end

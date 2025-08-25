@@ -7,12 +7,12 @@ module Tailmix
         def to_h
           {
             elements: elements.transform_values(&:to_h),
-            actions: actions.transform_values(&:to_h)
+            actions: actions.transform_values(&:to_h),
           }
         end
       end
 
-      Element = Struct.new(:name, :attributes, :dimensions, :stimulus, keyword_init: true) do
+      Element = Struct.new(:name, :attributes, :dimensions, :stimulus, :compound_variants, keyword_init: true) do
         def to_h
           {
             name: name,
@@ -29,7 +29,8 @@ module Tailmix
                 end
               end
             end,
-            stimulus: stimulus.to_h
+            stimulus: stimulus.to_h,
+            compound_variants: compound_variants
           }
         end
       end

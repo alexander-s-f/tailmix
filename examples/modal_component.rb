@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../lib/tailmix"
+require_relative "helpers"
 
 class ModalComponent
   include Tailmix
@@ -182,16 +183,7 @@ modal = ModalComponent.new(size: :lg, open: true)
 ui = modal.ui
 
 
-def stringify_keys(obj)
-  case obj
-  when Hash
-    obj.transform_keys(&:to_s).transform_values { |v| stringify_keys(v) }
-  when Array
-    obj.map { |v| stringify_keys(v) }
-  else
-    obj
-  end
-end
+
 
 # puts "Definition:"
 # puts JSON.pretty_generate(stringify_keys(ModalComponent.tailmix_definition.to_h))

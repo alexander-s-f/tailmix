@@ -19,6 +19,8 @@ module Tailmix
 
         output << generate_dimensions_docs
         output << ""
+        output << generate_compound_variants_docs # <-- Наш новый метод
+        output << ""
         output << generate_actions_docs
         output << ""
         output << generate_stimulus_docs
@@ -55,6 +57,35 @@ module Tailmix
           end
         else
           output << "No dimensions defined."
+        end
+
+        output.join("\n")
+      end
+
+      def generate_compound_variants_docs
+        output = []
+
+        compound_variants_by_element = @definition.elements.values.select do |el|
+          el.compound_variants.any?
+        end
+
+        if compound_variants_by_element.any?
+          output << "Compound Variants:"
+          compound_variants_by_element.each do |element|
+            output << "  - on element `:#{element.name}`:"
+            element.compound_variants.each do |cv|
+              conditions = cv[:on].map { |k, v| "#{k}: :#{v}" }.join(", ")
+              output << "    - on: { #{conditions} }"
+
+              modifications = cv[:modifications]
+              modifications.class_groups.each do |group|
+                label = group[:options][:group] ? "(group: :#{group[:options][:group]})" : ""
+                output << "      - classes #{label}: \"#{group[:classes].join(' ')}\""
+              end
+              output << "      - data: #{modifications.data.inspect}" if modifications.data.any?
+              output << "      - aria: #{modifications.aria.inspect}" if modifications.aria.any?
+            end
+          end
         end
 
         output.join("\n")

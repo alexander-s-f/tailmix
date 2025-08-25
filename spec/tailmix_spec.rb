@@ -123,6 +123,50 @@ RSpec.describe Tailmix do
       end
     end
 
+    context "with compound variants" do
+      let(:button_class) do
+        Class.new do
+          include Tailmix
+
+          tailmix do
+            element :button do
+              dimension :intent, default: :primary do
+                variant :primary, "bg-blue-500"
+                variant :danger, "bg-red-500"
+              end
+
+              dimension :size, default: :medium do
+                variant :medium, "p-4"
+                variant :small, "p-2"
+              end
+
+              compound_variant on: { intent: :danger, size: :small } do
+                classes "font-bold"
+                data special: "true"
+              end
+            end
+          end
+
+          attr_reader :ui
+          def initialize(intent: :primary, size: :medium)
+            @ui = tailmix(intent: intent, size: size)
+          end
+        end
+      end
+
+      it "does not apply compound styles when only one condition matches" do
+        ui = button_class.new(intent: :danger, size: :medium).ui
+        expect(ui.button.to_s).to eq("bg-red-500 p-4")
+        expect(ui.button.to_h).not_to have_key("data-special")
+      end
+
+      it "applies compound styles when all conditions match" do
+        ui = button_class.new(intent: :danger, size: :small).ui
+        expect(ui.button.to_s).to eq("bg-red-500 p-2 font-bold")
+        expect(ui.button.to_h["data-special"]).to eq("true")
+      end
+    end
+
     describe "Stimulus Compiler with dynamic values" do
       it "compiles values resolved from component methods" do
         attributes = ui.icon.to_h

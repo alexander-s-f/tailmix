@@ -47,7 +47,8 @@ module Tailmix
           name: parent_el.name,
           attributes: merge_attributes(parent_el.attributes, child_el.attributes),
           dimensions: merge_dimensions(parent_el.dimensions, child_el.dimensions),
-          stimulus: merge_stimulus(parent_el.stimulus, child_el.stimulus)
+          stimulus: merge_stimulus(parent_el.stimulus, child_el.stimulus),
+          compound_variants: parent_el.compound_variants + child_el.compound_variants
         )
       end
 
