@@ -39,9 +39,13 @@ module Tailmix
       def build_attributes_for(element_name, dimensions)
         element_def = @definition.elements.fetch(element_name)
 
+        active_dimensions = dimensions.slice(*element_def.dimensions.keys)
+        variant_string = active_dimensions.map { |k, v| "#{k}:#{v}" }.join(",")
+
         attributes = HTML::Attributes.new(
           { class: element_def.attributes.classes },
-          element_name: element_def.name
+          element_name: element_def.name,
+          variant_string: variant_string,
         )
 
         element_def.dimensions.each do |name, dim_def|
@@ -54,14 +58,6 @@ module Tailmix
           attributes.classes.add(variant_def.classes)
           attributes.data.merge!(variant_def.data)
           attributes.aria.merge!(variant_def.aria)
-        end
-
-        if Tailmix.configuration.dev_mode_attributes && dimensions.any?
-          active_dimensions = dimensions.slice(*element_def.dimensions.keys)
-          if active_dimensions.any?
-            dev_attr_string = active_dimensions.map { |k, v| "#{k}:#{v}" }.join(",")
-            attributes.data.merge!("tailmix-variants": dev_attr_string)
-          end
         end
 
         Stimulus::Compiler.call(

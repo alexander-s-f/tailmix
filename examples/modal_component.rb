@@ -84,12 +84,12 @@ class ModalComponent
 end
 
 puts "-" * 100
-puts ModalComponent.dev.docs
-puts ""
-puts "Scaffolds:"
-puts ""
-puts ModalComponent.dev.stimulus.scaffold
-puts ""
+# puts ModalComponent.dev.docs
+# puts ""
+# puts "Scaffolds:"
+# puts ""
+# puts ModalComponent.dev.stimulus.scaffold
+# puts ""
 
 # >>>
 #
@@ -177,14 +177,33 @@ puts ""
 
 
 
-# modal = ModalComponent.new(size: :lg, open: true)
+modal = ModalComponent.new(size: :lg, open: true)
 # modal.lock!
-# ui = modal.ui
+ui = modal.ui
+
+
+def stringify_keys(obj)
+  case obj
+  when Hash
+    obj.transform_keys(&:to_s).transform_values { |v| stringify_keys(v) }
+  when Array
+    obj.map { |v| stringify_keys(v) }
+  else
+    obj
+  end
+end
 
 # puts "Definition:"
-# pp ModalComponent.tailmix_definition
-# pp ModalComponent.tailmix_definition.to_h
-# ui.overlay.each do |key, value|
-#   puts "#{key} :-> #{value.inspect.to_s[0, 75]}..."
-# end
+# puts JSON.pretty_generate(stringify_keys(ModalComponent.tailmix_definition.to_h))
 # ui.action(:lock).apply!
+
+ModalComponent.dev.elements.each do |element_name|
+  element = ui.send(element_name)
+  puts element_name
+  element.each_attribute do |attribute|
+    attribute.each do |key, value|
+      puts "    #{key} :-> #{value}"
+    end
+    puts ""
+  end
+end

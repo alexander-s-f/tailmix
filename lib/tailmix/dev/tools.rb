@@ -21,6 +21,10 @@ module Tailmix
       def stimulus
         StimulusGenerator.new(@definition, @component_class.name)
       end
+
+      def elements
+        @definition.elements.values.map(&:name)
+      end
     end
   end
 end
