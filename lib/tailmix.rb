@@ -25,8 +25,8 @@ module Tailmix
     base.extend(DSL)
   end
 
-  def tailmix(options = {})
-    self.class.tailmix_facade_class.new(self, self.class.tailmix_definition, options)
+  def tailmix(dimensions = {})
+    self.class.tailmix_facade_class.new(self, self.class.tailmix_definition, dimensions)
   end
 end
 
