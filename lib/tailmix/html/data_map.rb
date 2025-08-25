@@ -9,12 +9,14 @@ module Tailmix
     class DataMap
       MERGEABLE_LIST_ATTRIBUTES = %i[controller action target].freeze
 
-      def initialize(initial_data = {})
+      def initialize(prefix, initial_data = {})
+        @prefix = prefix
         @data = {}
         merge!(initial_data)
       end
 
       def stimulus
+        raise "Stimulus builder is only available for data attributes" unless @prefix == "data"
         StimulusBuilder.new(self)
       end
 
@@ -26,7 +28,7 @@ module Tailmix
           key = key.to_sym
           if value.is_a?(Hash) && @data[key].is_a?(Hash)
             @data[key].merge!(value)
-          elsif MERGEABLE_LIST_ATTRIBUTES.include?(key)
+          elsif @prefix == "data" && MERGEABLE_LIST_ATTRIBUTES.include?(key)
             add_to_set(key, value)
           else
             @data[key] = value
@@ -67,15 +69,15 @@ module Tailmix
       end
 
       def to_h
-        flatten_data_hash(@data)
+        flatten_data_hash(@data, @prefix)
       end
 
       private
 
-      def flatten_data_hash(hash, prefix = "data", accumulator = {})
+      def flatten_data_hash(hash, prefix, accumulator = {})
         hash.each do |key, value|
           current_key = "#{prefix}-#{key.to_s.tr('_', '-')}"
-          if key.to_s.end_with?("_value")
+          if @prefix == "data" && key.to_s.end_with?("_value")
             serialized_value = case value
             when Hash, Array then value.to_json
             else value

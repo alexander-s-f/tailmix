@@ -1,16 +1,34 @@
 # frozen_string_literal: true
 
-class DimensionBuilder
-  attr_reader :options
+require_relative "variant_builder"
 
-  def initialize(default: nil)
-    @options = { options: {}, default: default }
-  end
+module Tailmix
+  module Definition
+    module Contexts
+      class DimensionBuilder
+        def initialize(default: nil)
+          @variants = {}
+          @default = default
+        end
 
-  def option(value, classes, default: false)
-    @options[:options][value] = classes.split
-    if default && @options[:default].nil?
-      @options[:default] = value
+        def variant(name, classes = "", data: {}, aria: {}, &block)
+          builder = VariantBuilder.new
+          builder.classes(classes) if classes && !classes.empty?
+          builder.data(data)
+          builder.aria(aria)
+
+          builder.instance_eval(&block) if block
+
+          @variants[name] = builder.build_variant
+        end
+
+        def build_dimension
+          {
+            default: @default,
+            variants: @variants.freeze
+          }
+        end
+      end
     end
   end
 end

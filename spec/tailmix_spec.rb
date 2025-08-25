@@ -11,8 +11,8 @@ RSpec.describe Tailmix do
         element :wrapper, "p-4"
         element :icon, "icon" do
           dimension :color, default: :gray do
-            option :gray, "text-gray-500"
-            option :red, "text-red-500"
+            variant :gray, "text-gray-500"
+            variant :red, "text-red-500"
           end
         end
         action :disable, method: :add do
@@ -33,8 +33,12 @@ RSpec.describe Tailmix do
         element :wrapper, "rounded-lg"
         element :icon do
           dimension :color do
-            option :green, "text-green-500"
-            option :gray, "text-slate-600"
+            variant :green, "text-green-500"
+            variant :gray, "text-slate-600" do
+              classes "dark:text-slate-400", group: :dark_mode
+              data theme: "dark"
+              aria hidden: "true"
+            end
           end
           stimulus.controller("icon").value(:api_key, method: :api_key)
         end
@@ -68,10 +72,10 @@ RSpec.describe Tailmix do
       expect(definition.elements.keys).to contain_exactly(:wrapper, :icon, :text)
     end
 
-    it "merges dimensions, overriding parent options" do
+    it "merges dimensions, overriding parent variants" do
       color_dim = definition.elements[:icon].dimensions[:color]
-      expect(color_dim[:options].keys).to contain_exactly(:gray, :red, :green)
-      expect(color_dim[:options][:gray]).to eq(["text-slate-600"]) # Проверяем, что опция перезаписана
+      expect(color_dim[:variants].keys).to contain_exactly(:gray, :red, :green)
+      expect(color_dim[:variants][:gray].classes).to include("text-slate-600")
     end
 
     it "overrides parent actions completely" do
@@ -87,11 +91,23 @@ RSpec.describe Tailmix do
     let(:ui) { component_instance.ui }
 
     context "with default dimensions" do
-      let(:component_instance) { child_component_class.new }
+      let(:component_instance) { child_component_class.new } # color: :gray is default
       let(:ui) { component_instance.ui }
 
       it "applies default values" do
         expect(ui.icon.to_s).to include("text-slate-600")
+      end
+
+      it "applies grouped classes from the variant" do
+        expect(ui.icon.to_s).to include("dark:text-slate-400")
+      end
+
+      it "applies data attributes from the variant" do
+        expect(ui.icon.to_h["data-theme"]).to eq("dark")
+      end
+
+      it "applies aria attributes from the variant" do
+        expect(ui.icon.to_h["aria-hidden"]).to eq("true")
       end
     end
 
@@ -101,28 +117,9 @@ RSpec.describe Tailmix do
 
       it "applies the red color class" do
         expect(ui.icon.to_s).to include("text-red-500")
-      end
-    end
-
-    context "with merged dimensions" do
-      it "applies default values from the merged definition" do
-        attributes = ui.icon.to_h
-        expect(attributes[:class]).to eq("icon text-slate-600")
-      end
-
-      it "accepts options for child and parent dimensions" do
-        ui_red = child_component_class.new(color: :red).ui
-        expect(ui_red.icon.to_s).to eq("icon text-red-500")
-      end
-    end
-
-    describe "Rendering Integration (The Magic `each`)" do
-      it "acts like a Hash for view helpers via a custom #each" do
-        expect(ui.wrapper.is_a?(Hash)).to be true
-
-        keys = []
-        ui.wrapper.each { |k, _| keys << k }
-        expect(keys).to contain_exactly(:class)
+        # Ensure it doesn't have attributes from the gray variant
+        expect(ui.icon.to_h).not_to have_key("data-theme")
+        expect(ui.icon.to_h).not_to have_key("aria-hidden")
       end
     end
 

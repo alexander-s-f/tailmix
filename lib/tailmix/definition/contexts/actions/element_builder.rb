@@ -10,13 +10,13 @@ module Tailmix
             @commands = []
           end
 
-          def classes(classes_string, method: @default_method)
+          def classes(classes_string, options = {})
+            method = options.fetch(:method, @default_method)
             @commands << { field: :classes, method: method, payload: classes_string }
           end
 
           def data(data_hash)
             operation = data_hash.delete(:method) || @default_method
-
             @commands << { field: :data, method: operation, payload: data_hash }
           end
 

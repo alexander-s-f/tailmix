@@ -9,8 +9,8 @@ class ModalComponent
   tailmix do
     element :base, "fixed inset-0 z-50 flex items-center justify-center" do
       dimension :open, default: true do
-        option true, "visible opacity-100"
-        option false, "invisible opacity-0"
+        variant true, "visible opacity-100"
+        variant false, "invisible opacity-0"
       end
       stimulus.controller("modal").action_payload(:toggle, as: :toggle_data)
     end
@@ -21,9 +21,12 @@ class ModalComponent
 
     element :panel, "relative bg-white rounded-lg shadow-xl transition-transform transform" do
       dimension :size, default: :md do
-        option :sm, "w-full max-w-sm p-4"
-        option :md, "w-full max-w-md p-6"
-        option :lg, "w-full max-w-lg p-8"
+        variant :sm, "w-full max-w-sm p-4" do
+          classes "dark:text-slate-400", group: :dark_mode
+          classes "one two"
+        end
+        variant :md, "w-full max-w-md p-6"
+        variant :lg, "w-full max-w-lg p-8"
       end
       stimulus.context("modal").target("panel")
     end
@@ -95,12 +98,19 @@ puts ""
 #
 # Dimensions:
 #   - open (default: true)
-#     - true: "visible opacity-100"
-#     - false: "invisible opacity-0"
+#     - true:
+#       - classes : "visible opacity-100"
+#     - false:
+#       - classes : "invisible opacity-0"
 #   - size (default: :md)
-#     - :sm: "w-full max-w-sm p-4"
-#     - :md: "w-full max-w-md p-6"
-#     - :lg: "w-full max-w-lg p-8"
+#     - :sm:
+#       - classes : "w-full max-w-sm p-4"
+#       - classes (group: :dark_mode): "dark:text-slate-400"
+#       - classes : "one two"
+#     - :md:
+#       - classes : "w-full max-w-md p-6"
+#     - :lg:
+#       - classes : "w-full max-w-lg p-8"
 #
 # Actions:
 #   - :toggle

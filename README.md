@@ -40,7 +40,7 @@ You define your component's appearance using a simple `tailmix do ... end` DSL i
 
 - `element :name, "base classes"`: Defines a logical part of your component (e.g., `:wrapper`, `:panel`, `:icon`).
 - `dimension :name, default: :value`: Defines a variant or "dimension" (e.g., `size` or `color`).
-- `option :value, "classes"`: Defines the classes for a specific variant option.
+- `variant :value, "classes"`: Defines the classes for a specific variant.
 - `action :name, method: :add | :toggle | :remove`: Defines a named set of UI mutations that can be applied on the server (`.apply!`) or passed to the client (`action_payload`).
 - `stimulus`: A powerful nested DSL for declaratively describing Stimulus `data-*` attributes.
 
@@ -59,8 +59,8 @@ class ModalComponent
   tailmix do
     element :base, "fixed inset-0 z-50 flex items-center justify-center" do
       dimension :open, default: false do
-        option true, "visible opacity-100"
-        option false, "invisible opacity-0"
+        variant true, "visible opacity-100"
+        variant false, "invisible opacity-0"
       end
       stimulus.controller("modal")
     end
@@ -71,8 +71,8 @@ class ModalComponent
 
     element :panel, "relative bg-white rounded-lg shadow-xl" do
       dimension :size, default: :md do
-        option :sm, "w-full max-w-sm p-4"
-        option :md, "w-full max-w-md p-6"
+        variant :sm, "w-full max-w-sm p-4"
+        variant :md, "w-full max-w-md p-6"
       end
     end
 

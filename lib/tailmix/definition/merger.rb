@@ -63,28 +63,21 @@ module Tailmix
         Result::Stimulus.new(definitions: combined_definitions)
       end
 
-      private
-
       def merge_dimensions(parent_dims, child_dims)
-        deep_merge(parent_dims, child_dims) do |key, parent_val, child_val|
-          if key == :options && parent_val.is_a?(Hash) && child_val.is_a?(Hash)
-            parent_val.merge(child_val)
-          else
-            child_val
-          end
-        end
-      end
+        all_keys = parent_dims.keys | child_dims.keys
 
-      def deep_merge(parent_hash, child_hash, &block)
-        child_hash.each_with_object(parent_hash.dup) do |(key, child_val), new_hash|
-          parent_val = new_hash[key]
+        all_keys.each_with_object({}) do |key, merged|
+          parent_val = parent_dims[key]
+          child_val = child_dims[key]
 
-          new_hash[key] = if parent_val.is_a?(Hash) && child_val.is_a?(Hash)
-            deep_merge(parent_val, child_val, &block)
-          elsif block_given? && new_hash.key?(key)
-            block.call(key, parent_val, child_val)
+          if parent_val && child_val
+            merged_variants = parent_val.fetch(:variants, {}).merge(child_val.fetch(:variants, {}))
+
+            default = child_val.key?(:default) ? child_val[:default] : parent_val[:default]
+
+            merged[key] = { default: default, variants: merged_variants }
           else
-            child_val
+            merged[key] = parent_val || child_val
           end
         end
       end

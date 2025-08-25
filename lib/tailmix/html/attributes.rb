@@ -12,9 +12,18 @@ module Tailmix
       def initialize(initial_hash = {}, element_name: nil)
         @element_name = element_name
         super()
-        self[:class] = ClassList.new
-        self[:data]  = DataMap.new
-        merge!(initial_hash)
+
+        attrs_to_merge = initial_hash.dup
+
+        initial_classes = attrs_to_merge.delete(:class)
+        initial_data = attrs_to_merge.delete(:data)
+        initial_aria = attrs_to_merge.delete(:aria)
+
+        self[:class] = ClassList.new(initial_classes)
+        self[:data]  = DataMap.new("data", initial_data || {})
+        self[:aria]  = DataMap.new("aria", initial_aria || {})
+
+        merge!(attrs_to_merge)
       end
 
       def each(&block)
@@ -22,10 +31,13 @@ module Tailmix
       end
 
       def to_h
-        final_attrs = select { |k, _| !%i[class data].include?(k.to_sym) }
+        final_attrs = select { |k, _| !%i[class data aria].include?(k.to_sym) }
+
         class_string = self[:class].to_s
         final_attrs[:class] = class_string unless class_string.empty?
+
         final_attrs.merge!(self[:data].to_h)
+        final_attrs.merge!(self[:aria].to_h)
 
         selector_attr = Tailmix.configuration.element_selector_attribute
         if selector_attr && @element_name
@@ -46,6 +58,10 @@ module Tailmix
 
       def data
         self[:data]
+      end
+
+      def aria
+        self[:aria]
       end
 
       def stimulus

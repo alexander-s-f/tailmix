@@ -23,6 +23,21 @@ module Tailmix
         end
       end
 
+      Variant = Struct.new(:class_groups, :data, :aria, keyword_init: true) do
+        def classes
+          class_groups.flat_map { |group| group[:classes] }
+        end
+
+        def to_h
+          {
+            classes: classes,
+            class_groups: class_groups,
+            data: data,
+            aria: aria
+          }
+        end
+      end
+
       Attributes = Struct.new(:classes, keyword_init: true)
       Stimulus = Struct.new(:definitions, keyword_init: true)
       Action = Struct.new(:action, :mutations, keyword_init: true)

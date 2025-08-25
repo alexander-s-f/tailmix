@@ -43,8 +43,14 @@ module Tailmix
           all_dimensions.each do |dim_name, config|
             default_info = config[:default] ? "(default: #{config[:default].inspect})" : ""
             output << "  - #{dim_name} #{default_info}"
-            config[:options].each do |option_key, option_value|
-              output << "    - #{option_key.inspect}: \"#{option_value.join(' ')}\""
+            config[:variants].each do |variant_name, variant_def|
+              output << "    - #{variant_name.inspect}:"
+              variant_def.class_groups.each do |group|
+                label = group[:options][:group] ? "(group: :#{group[:options][:group]})" : ""
+                output << "      - classes #{label}: \"#{group[:classes].join(' ')}\""
+              end
+              output << "      - data: #{variant_def.data.inspect}" if variant_def.data.any?
+              output << "      - aria: #{variant_def.aria.inspect}" if variant_def.aria.any?
             end
           end
         else

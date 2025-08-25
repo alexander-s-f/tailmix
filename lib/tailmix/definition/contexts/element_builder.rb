@@ -22,9 +22,9 @@ module Tailmix
         end
 
         def dimension(name, default: nil, &block)
-          dimension = DimensionBuilder.new(default: default)
-          dimension.instance_eval(&block)
-          @dimensions[name.to_sym] = dimension.options
+          builder = Contexts::DimensionBuilder.new(default: default)
+          builder.instance_eval(&block)
+          @dimensions[name.to_sym] = builder.build_dimension
         end
 
         def build_definition

@@ -38,28 +38,32 @@ module Tailmix
 
       def build_attributes_for(element_name, dimensions)
         element_def = @definition.elements.fetch(element_name)
-        initial_classes = element_def.attributes.classes
-        class_list = HTML::ClassList.new(initial_classes)
 
-        element_def.dimensions.each do |name, dim|
-          value = dimensions.fetch(name, dim[:default])
+        attributes = HTML::Attributes.new(
+          { class: element_def.attributes.classes },
+          element_name: element_def.name
+        )
+
+        element_def.dimensions.each do |name, dim_def|
+          value = dimensions.fetch(name, dim_def[:default])
           next if value.nil?
-          classes_for_option = dim.fetch(:options, {}).fetch(value, nil)
-          class_list.add(classes_for_option)
+
+          variant_def = dim_def.fetch(:variants, {}).fetch(value, nil)
+          next unless variant_def
+
+          attributes.classes.add(variant_def.classes)
+          attributes.data.merge!(variant_def.data)
+          attributes.aria.merge!(variant_def.aria)
         end
 
-        data_map = HTML::DataMap.new
         Stimulus::Compiler.call(
           definition: element_def.stimulus,
-          data_map: data_map,
+          data_map: attributes.data,
           root_definition: @definition,
           component: @component_instance
         )
 
-        HTML::Attributes.new(
-          { class: class_list, data: data_map },
-          element_name: element_def.name
-        )
+        attributes
       end
     end
   end
