@@ -56,6 +56,14 @@ module Tailmix
           attributes.aria.merge!(variant_def.aria)
         end
 
+        if Tailmix.configuration.dev_mode_attributes && dimensions.any?
+          active_dimensions = dimensions.slice(*element_def.dimensions.keys)
+          if active_dimensions.any?
+            dev_attr_string = active_dimensions.map { |k, v| "#{k}:#{v}" }.join(",")
+            attributes.data.merge!("tailmix-variants": dev_attr_string)
+          end
+        end
+
         Stimulus::Compiler.call(
           definition: element_def.stimulus,
           data_map: attributes.data,
