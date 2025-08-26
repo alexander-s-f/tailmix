@@ -1,214 +1,304 @@
 # Tailmix
 
-**Tailmix** is a powerful, declarative, and interactive CSS class manager for building maintainable UI components in Ruby. It's designed to work seamlessly with utility-first CSS frameworks like **Tailwind CSS**, allowing you to co-locate your style logic with your component's code—in a clean, structured, and highly reusable way.
+**Tailmix** is a powerful, declarative engine for managing HTML attributes in Ruby UI components. It allows you to co-locate all presentational logic—including CSS classes, data attributes, and ARIA roles—directly within your component's code, creating truly self-contained and maintainable components.
 
-[![Gem Version](https://badge.fury.io/rb/tailmix.svg)](https://badge.fury.io/rb/tailmix)
-[![Build Status](https://github.com/alexander-s-f/tailmix/actions/workflows/main.yml/badge.svg)](https://github.com/alexander-s-f/tailmix/actions/workflows/main.yml)
+[](https://badge.fury.io/rb/tailmix)
+[](https://github.com/alexander-s-f/tailmix/actions/workflows/main.yml)
 
 Inspired by modern frontend tools like CVA (Class Variance Authority), Tailmix brings a robust styling engine to your server-side components (built with Arbre, ViewComponent, Phlex, etc.).
 
-## Philosophy
+## Key Features
 
-* **Co-location & Isolation:** Define all style variants for a component directly within its class. No more hunting for styles in separate files. Each component is fully self-contained.
-* **Declarative First:** A beautiful DSL to declaratively describe your component's appearance based on variants like state, size, etc.
-* **Imperative Power:** A rich runtime API to dynamically add, remove, or toggle classes, perfect for server-side updates via Hotwire/Turbo.
-* **Framework-Agnostic:** Written in pure Ruby with zero dependencies, ready to be used in any project.
+* **Declarative DSL:** Describe your component's styles with an elegant and intuitive API.
+* **Variants & Compound Variants:** Easily manage different component states (`size`, `color`, etc.) and their combinations.
+* **Stimulus Bridge:** Seamlessly integrate with StimulusJS to create interactive components.
+* **"Hot" UI Updates:** Enable optimistic UI updates with `action` and `action_payload` in tandem with Hotwire/Turbo.
+* **Component Inheritance:** Create base components and extend them to avoid code duplication.
+* **Developer Tools:** Get built-in documentation and code generators right in your console.
+* **Zero Dependencies:** Pure Ruby, ready to work in any project.
+
+-----
+
+## Quick Links
+
+* **[Full Documentation →](/docs)**
+* **[DSL Reference](/docs/02_dsl_reference.md)**
+* **[Cookbook (Recipes)](/docs/05_cookbook.md)**
+
+
+-----
 
 ## Installation
 
 Add the gem to your Gemfile:
 
-```ruby
-gem 'tailmix'
-````
-
-Or install it from the command line:
-
 ```bash
 bundle add tailmix
 ```
 
-Next, run the installer to set up the JavaScript assets:
+Then, run the installer to set up the JavaScript assets (required for `action` and `Stimulus` integration):
 
 ```bash
 bin/rails g tailmix:install
 ```
 
-## Core Concepts
+-----
 
-You define your component's appearance using a simple `tailmix do ... end` DSL inside your class.
+## Usage
 
-- `element :name, "base classes"`: Defines a logical part of your component (e.g., `:wrapper`, `:panel`, `:icon`).
-- `dimension :name, default: :value`: Defines a variant or "dimension" (e.g., `size` or `color`).
-- `variant :value, "classes"`: Defines the classes for a specific variant.
-- `action :name, method: :add | :toggle | :remove`: Defines a named set of UI mutations that can be applied on the server (`.apply!`) or passed to the client (`action_payload`).
-- `stimulus`: A powerful nested DSL for declaratively describing Stimulus `data-*` attributes.
+The core idea of Tailmix is to describe all variants of your component within a Ruby class.
 
-## Usage Example
+### 1. Basic Example: The `Badge` Component
 
-Let's build a complex `ModalComponent` from scratch.
-#### 1. Define the Component (`app/components/modal_component.rb`)
+Let's create a simple, flexible `Badge` that can have different colors.
 
-This is a plain Ruby class that contains all the style and behavior logic.
+**Component Definition:**
 
 ```ruby
+# app/components/badge_component.rb
+class BadgeComponent
+  include Tailmix
+  attr_reader :ui, :text
+
+  def initialize(text, color: :gray)
+    @ui = tailmix(color: color)
+    @text = text
+  end
+
+  tailmix do
+    element :badge, "inline-flex items-center px-2.5 py-0.5 text-xs font-medium rounded-full" do
+      dimension :color, default: :gray do
+        variant :gray,    "bg-gray-100 text-gray-800"
+        variant :success, "bg-green-100 text-green-800"
+        variant :danger,  "bg-red-100 text-red-800"
+      end
+    end
+  end
+end
+```
+
+**Usage in ERB:**
+In ERB, use the `**` operator to pass the attributes.
+
+```erb
+<% badge = BadgeComponent.new("Active", color: :success) %>
+
+<span <%= tag.attributes **badge.ui.badge %>>
+  <%= badge.text %>
+</span>
+```
+
+**Usage in Arbre:**
+Arbre was the primary inspiration for Tailmix. Integration is seamless and does not require the `**` operator.
+
+```ruby
+# my_view.arb
+badge = BadgeComponent.new("Active", color: :success)
+ui = badge.ui
+
+span ui.badge do
+  text_node badge.text
+end
+```
+
+### 2\. Adding Interactivity with Stimulus
+
+Tailmix allows you to declaratively define Stimulus controllers. Let's build a component to copy text to the clipboard.
+
+**Component Definition:**
+
+```ruby
+# app/components/clipboard_component.rb
+class ClipboardComponent
+  include Tailmix
+  attr_reader :ui, :text_to_copy
+
+  def initialize(text_to_copy)
+    @ui = tailmix
+    @text_to_copy = text_to_copy
+  end
+
+  tailmix do
+    element :wrapper, "flex items-center space-x-2" do
+      stimulus.controller("clipboard") # data-controller="clipboard"
+    end
+
+    element :source, "p-2 border rounded-md bg-gray-50" do
+      stimulus.context("clipboard").target("source") # data-clipboard-target="source"
+    end
+
+    element :button, "px-3 py-2 text-sm font-medium text-white bg-blue-600 rounded-md" do
+      stimulus.context("clipboard").action(:click, :copy) # data-action="click->clipboard#copy"
+    end
+  end
+end
+```
+
+**Stimulus Controller:**
+Generate a template with `puts ClipboardComponent.dev.stimulus.scaffold` and fill in the logic.
+
+```javascript
+// app/javascript/controllers/clipboard_controller.js
+import { Controller } from "@hotwired/stimulus"
+
+export default class extends Controller {
+  static targets = ["source"]
+
+  copy() {
+    navigator.clipboard.writeText(this.sourceTarget.textContent)
+    // Optionally: show a success notification
+  }
+}
+```
+
+Your component is now fully interactive, with its entire structure defined in a single Ruby file.
+
+-----
+
+## 3. Advanced Example: An Interactive Modal
+
+Now let's see the full power of Tailmix by building a common UI pattern: a fully interactive modal component. This example combines multiple elements, shared variants, Stimulus integration, and a client-side action for optimistic updates.
+
+Component Definition:
+The `ModalComponent` definition is self-contained. It describes the structure, all possible states, and the interactive behavior of the modal.
+
+```ruby
+# app/components/modal_component.rb
 class ModalComponent
   include Tailmix
   attr_reader :ui
 
   tailmix do
-    element :base, "fixed inset-0 z-50 flex items-center justify-center" do
+    # A container to hold the controller and its data
+    element :container do
+      stimulus.controller("modal")
+              .action_payload(:toggle, as: :toggle_data)
+              # dynamic values:
+              .value(:user_id, method: :get_current_user_id)
+              .value(:generated_at, call: -> { Time.now.iso8601 })
+    end
+
+    # The button that will trigger the modal
+    element :open_button, "inline-flex text-white bg-blue-600 rounded-lg px-5 py-2.5 cursor-pointer" do
+      stimulus.context("modal").action(:click, :toggle)
+    end
+
+    # The modal's backdrop and wrapper, controlled by the :open dimension
+    element :base, "flex items-center justify-center" do
       dimension :open, default: false do
-        variant true, "visible opacity-100"
+        variant true, "fixed inset-0 z-50 visible opacity-100 transition-opacity"
         variant false, "invisible opacity-0"
       end
-      stimulus.controller("modal")
     end
 
-    element :overlay, "fixed inset-0 bg-black/50 transition-opacity" do
-      stimulus.context("modal").action(click: :close)
+    element :overlay, "fixed inset-0 bg-black/50" do
+      stimulus.context("modal").action(:click, :toggle)
     end
 
-    element :panel, "relative bg-white rounded-lg shadow-xl" do
+    # The main modal panel, with variants for both :open and :size
+    element :panel, "w-full relative bg-white rounded-lg shadow-xl" do
+      dimension :open, default: false do
+        variant true, "block"
+        variant false, "hidden"
+      end
       dimension :size, default: :md do
-        variant :sm, "w-full max-w-sm p-4"
-        variant :md, "w-full max-w-md p-6"
+        variant :sm, "max-w-sm p-4"
+        variant :md, "max-w-md p-6"
       end
+      stimulus.context("modal").target("panel")
     end
 
-    element :close_button, "absolute top-2 right-2 p-1 text-gray-400" do
-      stimulus.context("modal").action(click: :close)
+    element :close_button, "absolute top-2 right-2 p-1 text-gray-500 rounded-full cursor-pointer" do
+      stimulus.context("modal").action(:click, :toggle)
     end
 
-    element :confirm_button, "px-4 py-2 bg-blue-600 text-white rounded-md" do
-      stimulus.controller("form-submission")
-              .action(:click, :show_pending_state)
-              .action_payload(:show_pending_state, as: :pending_data)
-    end
-    
-    action :show_pending_state, method: :add do
-      element :confirm_button do
-        classes "is-loading"
-        data pending: true
+    # The action that will be executed on the client-side
+    action :toggle, method: :toggle do
+      element :base do
+        classes "visible opacity-100"
+        classes "invisible opacity-0"
+      end
+      element :overlay do
+        classes "fixed inset-0 bg-black/50"
+      end
+      element :panel do
+        classes "block"
+        classes "hidden"
       end
     end
   end
 
-  def initialize(open: false, size: :md)
-    @ui = tailmix(open: open, size: size)
+  def initialize(size: :md, open: false)
+    @ui = tailmix(size: size, open: open)
+  end
+
+  def get_current_user_id
+    123
   end
 end
 ```
 
-#### 2. Use in a View (Arbre, ERB, etc.)
+**Stimulus Controller:**
+This controller will handle the modal's open/close logic and use the `action_payload` to trigger the closing animation defined in Ruby.
 
-Thanks to Tailmix's design, you can pass `ui` objects directly to many rendering helpers.
-
-##### Arbre
-
-The API is seamless. The `ui` object behaves like an attributes hash automatically.
-
-Ruby
-
-```ruby
-# app/views/components/my_modal.arb
-# 1. Instantiate the component with the desired variants
-modal = ModalComponent.new(open: true, size: :sm)
-
-# 2. Render by passing the ui objects directly to Arbre's tag helpers
-div modal.ui.base do
-  div modal.ui.overlay
-
-  div modal.ui.panel do
-    # ... your content ...
-    button modal.ui.confirm_button, "Confirm"
-  end
-end
-```
-
-##### ERB / Rails Tag Helpers
-
-In ERB, the idiomatic way to pass a hash-like object as attributes is with the double splat (`**`) operator.
-
-Фрагмент кода
-
-```
-<%# app/views/pages/home.html.erb %>
-<% modal = ModalComponent.new(open: true, size: :sm) %>
-
-<%= tag.div **modal.ui.base do %>
-  <%= tag.div **modal.ui.overlay %>
-
-  <%= tag.div **modal.ui.panel do %>
-    <%# ... your content ... %>
-    <%= tag.button "Confirm", **modal.ui.confirm_button %>
-  <% end %>
-<% end %>
-```
-
-#### 3. Bring it to Life with Stimulus
-
-The `action_payload` helper makes it easy to connect server-side definitions with client-side behavior.
-
-JavaScript
-
-```js
-// app/javascript/controllers/form_submission_controller.js
+```javascript
+// app/javascript/controllers/modal_controller.js
 import { Controller } from "@hotwired/stimulus"
 import Tailmix from "tailmix"
 
 export default class extends Controller {
-  static values = { pendingData: Object }
+    static values = { toggleData: Object }
 
-  showPendingState(event) {
-    event.preventDefault()
-    
-    // Instantly apply UI changes from the payload
-    Tailmix.run({
-      config: this.pendingDataValue,
-      controller: this
-    });
+    toggle(event) {
+        // Prevent default browser behavior, like form submissions
+        if (event) event.preventDefault();
 
-    // ... then submit the form or send an AJAX request
-  }
+        // Run the UI mutations defined in our Ruby :toggle action
+        Tailmix.run({
+            config: this.toggleDataValue,
+            controller: this
+        });
+    }
 }
 ```
 
-## Developer Tools
-
-Tailmix comes with built-in introspection tools to improve your development experience. Access them via the `.dev` namespace on your component class.
-
-#### Component Documentation
-
-Get a cheat sheet of all available `dimensions` and `actions` right in your console.
+**View Usage (Arbre):**
+The view code is clean and readable. We instantiate the component and render its elements. The action_payload is serialized to the container element, making it available to the Stimulus controller.
 
 ```ruby
-puts ModalComponent.dev.docs
-```
+# my_view.arb
+modal = ModalComponent.new(size: :sm)
+ui = modal.ui
 
-#### Stimulus Controller Generator
+div ui.container do
+  button "Open Modal", ui.open_button
 
-Tailmix can analyze your component and scaffold a perfect boilerplate Stimulus controller with all targets, values, and action methods.
+  div ui.base do
+    div ui.overlay
+    div ui.panel do
+      button "Close", ui.close_button
+      h3 "Payment Successful", ui.title
 
-```ruby
-puts ModalComponent.dev.stimulus.scaffold("modal")
-```
-
-## Configuration
-
-You can configure Tailmix by creating an initializer:
-
-```ruby
-# config/initializers/tailmix.rb
-Tailmix.configure do |config|
-  # The attribute used by the universal JS selector.
-  config.element_selector_attribute = "data-tm-el"
+      div ui.body do
+        "Your payment has been successfully submitted..."
+      end
+    end
+  end
 end
 ```
 
+-----
+
+## Developer Tools
+
+Use the `.dev` namespace to introspect your components right from the console.
+
+* **`YourComponent.dev.docs`**: Displays full documentation for all variants and actions.
+* **`YourComponent.dev.stimulus.scaffold`**: Generates a Stimulus controller template.
+
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at [https://github.com/alexander-s-f/tailmix](https://github.com/alexander-s-f/tailmix).
+Bug reports and pull requests are welcome on GitHub.
 
 ## License
 

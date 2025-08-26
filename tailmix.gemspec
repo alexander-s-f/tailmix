@@ -8,8 +8,8 @@ Gem::Specification.new do |spec|
   spec.authors = [ "Alexander Fokin" ]
   spec.email = [ "alexander.s.fokin@gmail.com" ]
 
-  spec.summary = "A declarative class manager for Ruby UI components."
-  spec.description = "Tailmix provides a powerful DSL to define component style schemas, including variants and parts. It enables clean, co-located style management and offers a rich runtime API for dynamic class manipulation, perfect for Hotwire/Turbo and utility-first CSS."
+  spec.summary = "A declarative, state-driven attribute manager for Ruby UI components."
+  spec.description = "Tailmix provides a powerful DSL to define component attribute schemas, including variants, compound variants, and states. It enables clean, co-located presentational logic (CSS classes, data attributes, ARIA roles) and offers a rich runtime API for dynamic manipulation, perfect for Hotwire/Turbo."
   spec.homepage = "https://github.com/alexander-s-f/tailmix"
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.1.0"
