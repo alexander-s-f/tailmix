@@ -289,6 +289,59 @@ end
 
 -----
 
+## 3. Advanced Tailmix + Declarable: A Shopping Cart Item
+Perfect with `Declarable` for a complex component with a declarative approach.
+
+```ruby
+class ShoppingCartItemComponent
+  include Declarable
+  include Tailmix
+
+  # Declarable dsl
+  declarable do
+    state :unit_price, default: 0
+    state :quantity, default: 1, validates: { inclusion: { in: 1..10 } }
+
+    derive :total_price, from: [:unit_price, :quantity] do |price, qty|
+      price * qty
+    end
+
+    derive :is_expensive, from: :total_price do |total|
+      total > 1000
+    end
+
+    action :increment do |context|
+      context.quantity += 1
+    end
+  end
+
+  # Tailmix dsl
+  tailmix do
+    element :wrapper, "flex justify-between items-center p-4 border-b" do
+      # We change the background reactively if the product is expensive!
+      dimension :is_expensive, default: false do
+        variant true, "bg-yellow-50"
+        variant false, "bg-white"
+      end
+    end
+
+    element :total_price_text, "font-bold"
+  end
+
+  attr_reader :context, :ui
+
+  def initialize(price:, quantity: 1)
+    # Init Declarable
+    @context = initialize_declarable(unit_price: price, quantity: quantity)
+    
+    # Passing derived values from Declarable directly to Tailmix!
+    @ui = tailmix(is_expensive: @context.is_expensive)
+  end
+end
+```
+
+-----
+
 ## Developer Tools
 
 Use the `.dev` namespace to introspect your components right from the console.
