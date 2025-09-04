@@ -26,9 +26,14 @@ module Tailmix
         merge!(attrs_to_merge)
       end
 
+
       def each(&block)
         to_h.each(&block)
       end
+      alias_method :each_pair, :each
+      # def each(&block)
+      #   to_h.each(&block)
+      # end
 
       def to_h
         final_attrs = select { |k, _| !%i[class data aria].include?(k.to_sym) }

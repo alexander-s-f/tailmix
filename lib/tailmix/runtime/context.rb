@@ -87,6 +87,14 @@ module Tailmix
           end
         end
 
+        if element_def.event_bindings&.any?
+          action_string = element_def.event_bindings.map do |binding|
+            "#{binding[:event]}->#{binding[:action]}"
+          end.join(" ")
+
+          attributes.data.add(tailmix_action: action_string)
+        end
+
         Stimulus::Compiler.call(
           definition: element_def.stimulus,
           data_map: attributes.data,

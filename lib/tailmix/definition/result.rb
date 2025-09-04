@@ -12,7 +12,7 @@ module Tailmix
         end
       end
 
-      Element = Struct.new(:name, :attributes, :dimensions, :stimulus, :compound_variants, keyword_init: true) do
+      Element = Struct.new(:name, :attributes, :dimensions, :stimulus, :compound_variants, :states, :event_bindings, keyword_init: true) do
         def to_h
           {
             name: name,
@@ -66,11 +66,10 @@ module Tailmix
         end
       end
 
-      Action = Struct.new(:action, :mutations, keyword_init: true) do
+      Action = Struct.new(:transitions, keyword_init: true) do
         def to_h
           {
-            action: action,
-            mutations: mutations
+            transitions: transitions,
           }
         end
       end

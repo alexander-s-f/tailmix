@@ -6,23 +6,25 @@ module Tailmix
   module Definition
     module Contexts
       class ActionBuilder
-        def initialize(method)
-          @method = method
-          @mutations = {}
+        def initialize
+          @transitions = []
         end
 
-        def element(name, &block)
-          builder = Actions::ElementBuilder.new(@method)
-          builder.instance_eval(&block)
+        def set_state(payload)
+          @transitions << { type: :set_state, payload: payload }
+        end
 
-          commands = builder.build_commands
-          @mutations[name.to_sym] = commands unless commands.empty?
+        def toggle_state(key)
+          @transitions << { type: :toggle_state, payload: key.to_sym }
+        end
+
+        def refresh_state(key)
+          @transitions << { type: :refresh_state, payload: key.to_sym }
         end
 
         def build_definition
           Definition::Result::Action.new(
-            action: @method,
-            mutations: @mutations.freeze
+            transitions: @transitions.freeze
           )
         end
       end

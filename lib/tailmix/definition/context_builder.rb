@@ -21,11 +21,12 @@ module Tailmix
         builder.instance_eval(&block) if block
 
         @elements[name.to_sym] = builder
+        @actions.merge!(builder.auto_actions)
       end
 
-      def action(name, method:, &block)
-        builder = Contexts::ActionBuilder.new(method)
-        builder.instance_eval(&block) if block
+      def action(name, &block)
+        builder = Contexts::ActionBuilder.new
+        builder.instance_eval(&block)
         @actions[name.to_sym] = builder
       end
 
