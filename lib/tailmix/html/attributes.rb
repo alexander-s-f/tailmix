@@ -3,16 +3,14 @@
 require "erb"
 require_relative "class_list"
 require_relative "data_map"
-require_relative "selector"
 
 module Tailmix
   module HTML
     class Attributes < Hash
-      attr_reader :element_name, :variant_string
+      attr_reader :element_name
 
-      def initialize(initial_hash = {}, element_name: nil, variant_string: "")
+      def initialize(initial_hash = {}, element_name: nil)
         @element_name = element_name
-        @variant_string = variant_string
         super()
 
         attrs_to_merge = initial_hash.dup
@@ -24,7 +22,6 @@ module Tailmix
         self[:class] = ClassList.new(initial_classes)
         self[:data]  = DataMap.new("data", initial_data || {})
         self[:aria]  = DataMap.new("aria", initial_aria || {})
-        self[:tailmix] = Selector.new(element_name, variant_string)
 
         merge!(attrs_to_merge)
       end
@@ -34,14 +31,15 @@ module Tailmix
       end
 
       def to_h
-        final_attrs = select { |k, _| !%i[class data aria tailmix].include?(k.to_sym) }
+        final_attrs = select { |k, _| !%i[class data aria].include?(k.to_sym) }
 
         class_string = self[:class].to_s
         final_attrs[:class] = class_string unless class_string.empty?
 
         final_attrs.merge!(self[:data].to_h)
         final_attrs.merge!(self[:aria].to_h)
-        final_attrs.merge!(self[:tailmix].to_h)
+
+        final_attrs["data-tailmix-element"] = @element_name if @element_name
 
         final_attrs
       end
@@ -67,10 +65,6 @@ module Tailmix
         data.stimulus
       end
 
-      def tailmix
-        self[:tailmix]
-      end
-
       def toggle(class_names)
         classes.toggle(class_names)
         self
@@ -87,7 +81,7 @@ module Tailmix
       end
 
       def each_attribute(&block)
-        [ classes: classes, data: data.to_h, aria: aria.to_h, tailmix: tailmix.to_h ].each(&block)
+        [ classes: classes, data: data.to_h, aria: aria.to_h ].each(&block)
       end
     end
   end

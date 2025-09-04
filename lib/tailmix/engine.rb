@@ -13,5 +13,15 @@ module Tailmix
         Rails.application.config.assets.precompile += PRECOMPILE_ASSETS
       end
     end
+
+    initializer "tailmix.add_middleware" do |app|
+      app.middleware.use Tailmix::Middleware::RegistryCleaner
+    end
+
+    initializer "tailmix.helpers" do
+      ActiveSupport.on_load(:action_controller_base) do
+        helper Tailmix::ViewHelpers
+      end
+    end
   end
 end

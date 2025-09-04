@@ -1,4 +1,6 @@
 # frozen_string_literal: true
+require "json"
+require_relative "../registry"
 
 module Tailmix
   module Runtime
@@ -10,6 +12,8 @@ module Tailmix
         @definition = definition
         @dimensions = dimensions
         @attributes_cache = {}
+
+        Registry.instance.register(component_instance.class)
       end
 
       def initialize_copy(source)
@@ -34,19 +38,27 @@ module Tailmix
         Action.new(self, name)
       end
 
+      def component_name
+        @component_instance.class.name
+      end
+
+      def state_payload
+        @dimensions.to_json
+      end
+
+      def definition_payload
+        @definition.to_h.to_json
+      end
+
       private
 
       def build_attributes_for(element_name, dimensions)
         element_def = @definition.elements.fetch(element_name)
 
-        active_dimensions = dimensions.slice(*element_def.dimensions.keys)
-        variant_string = active_dimensions.map { |k, v| "#{k}:#{v}" }.join(",")
-
         attributes = HTML::Attributes.new(
           { class: element_def.attributes.classes },
-          element_name: element_def.name,
-          variant_string: variant_string,
-          )
+          element_name: element_def.name
+        )
 
         element_def.dimensions.each do |name, dim_def|
           value = dimensions.fetch(name, dim_def[:default])
