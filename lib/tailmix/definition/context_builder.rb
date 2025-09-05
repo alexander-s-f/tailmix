@@ -3,6 +3,7 @@
 require_relative "contexts/action_builder"
 require_relative "contexts/element_builder"
 require_relative "contexts/variant_builder"
+require_relative "contexts/payload_proxy"
 
 module Tailmix
   module Definition
@@ -15,19 +16,20 @@ module Tailmix
         @component_name = component_name
       end
 
-      def element(name, base_classes = "", &block)
+      def element(name, classes = "", &block)
         builder = Contexts::ElementBuilder.new(name)
-        builder.attributes.classes(base_classes.split)
+        builder.attributes.classes(classes.split)
 
         builder.instance_eval(&block) if block
-
         @elements[name.to_sym] = builder
+
         @actions.merge!(builder.auto_actions)
       end
 
       def action(name, &block)
         builder = Contexts::ActionBuilder.new
-        builder.instance_eval(&block)
+        proxy = Contexts::PayloadProxy.new
+        builder.instance_exec(proxy, &block)
         @actions[name.to_sym] = builder
       end
 

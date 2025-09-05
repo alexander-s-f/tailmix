@@ -10,8 +10,16 @@ module Tailmix
           @transitions = []
         end
 
-        def set_state(payload)
-          @transitions << { type: :set_state, payload: payload }
+        def set_state(payload_hash)
+          processed_payload = payload_hash.transform_values do |value|
+            if value.is_a?(PayloadValue)
+              # If a marker is found, we replace it with a special structure for JSON.
+              { __type: "payload_value", key: value.key }
+            else
+              value
+            end
+          end
+          @transitions << { type: :set_state, payload: processed_payload }
         end
 
         def toggle_state(key)
@@ -20,6 +28,10 @@ module Tailmix
 
         def refresh_state(key)
           @transitions << { type: :refresh_state, payload: key.to_sym }
+        end
+
+        def merge_payload
+          @transitions << { type: :merge_payload }
         end
 
         def build_definition

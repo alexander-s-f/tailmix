@@ -90,12 +90,24 @@ module Tailmix
           end
         end
 
-        if element_def.event_bindings&.any?
-          action_string = element_def.event_bindings.map do |binding|
-            "#{binding[:event]}->#{binding[:action]}"
-          end.join(" ")
+        if element_def.attribute_bindings&.any?
+          element_def.attribute_bindings.each do |attr_name, state_key|
+            value = dimensions[state_key]
+            attributes[attr_name] = value if value
+          end
+        end
 
-          attributes.data.add(tailmix_action: action_string)
+        if element_def.event_bindings&.any?
+          action_definitions = []
+          payload_definitions = []
+
+          element_def.event_bindings.each do |binding|
+            action_definitions << "#{binding[:event]}->#{binding[:action]}"
+            payload_definitions << binding[:with].to_json if binding[:with]
+          end
+
+          attributes.data.add(tailmix_action: action_definitions.join(" "))
+          attributes.data.add(tailmix_action_payload: payload_definitions.join(" ")) if payload_definitions.any?
         end
 
         Stimulus::Compiler.call(

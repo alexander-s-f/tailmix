@@ -20,6 +20,7 @@ module Tailmix
           @states = {}
           @event_bindings = []
           @auto_actions = {}
+          @attribute_bindings = {}
         end
 
         def attributes
@@ -55,10 +56,14 @@ module Tailmix
           end
         end
 
-        def on(event_name, action_name, **options)
-          @event_bindings << { event: event_name, action: action_name, options: options }
+        def on(event_name, action_name, with: nil, **options)
+          @event_bindings << { event: event_name, action: action_name, with: with, options: options }
         end
         alias_method :action, :on
+
+        def bind(attribute_name, to:)
+          @attribute_bindings[attribute_name.to_sym] = to.to_sym
+        end
 
         def stimulus
           @stimulus_builder ||= StimulusBuilder.new
@@ -89,7 +94,8 @@ module Tailmix
             dimensions: @dimensions.freeze,
             compound_variants: @compound_variants.freeze,
             states: @states.freeze,
-            event_bindings: @event_bindings.freeze
+            event_bindings: @event_bindings.freeze,
+            attribute_bindings: @attribute_bindings.freeze
           )
         end
       end
