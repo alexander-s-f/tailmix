@@ -9,8 +9,9 @@ module Tailmix
     class Attributes < Hash
       attr_reader :element_name
 
-      def initialize(initial_hash = {}, element_name: nil)
+      def initialize(initial_hash = {}, element_name: nil, context: nil)
         @element_name = element_name
+        @context = context
         super()
 
         attrs_to_merge = initial_hash.dup
@@ -31,9 +32,6 @@ module Tailmix
         to_h.each(&block)
       end
       alias_method :each_pair, :each
-      # def each(&block)
-      #   to_h.each(&block)
-      # end
 
       def to_h
         final_attrs = select { |k, _| !%i[class data aria].include?(k.to_sym) }
@@ -45,6 +43,7 @@ module Tailmix
         final_attrs.merge!(self[:aria].to_h)
 
         final_attrs["data-tailmix-element"] = @element_name if @element_name
+        final_attrs["data-tailmix-id"] = @context.id if @context.id
 
         final_attrs
       end
@@ -88,6 +87,18 @@ module Tailmix
       def each_attribute(&block)
         [ classes: classes, data: data.to_h, aria: aria.to_h ].each(&block)
       end
+
+      def component
+        raise "No context available to build component root" unless @context
+
+        root_attrs = {
+          "data-tailmix-component" => @context.component_name,
+          "data-tailmix-state" => @context.state_payload,
+        }
+
+        self.class.new(self.to_h.merge(root_attrs), element_name: @element_name, context: @context)
+      end
+      alias_method :root, :component
     end
   end
 end

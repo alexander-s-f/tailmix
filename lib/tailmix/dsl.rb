@@ -9,7 +9,7 @@ module Tailmix
   # This module is extended into any class that includes Tailmix.
   module DSL
     def tailmix(&block)
-      child_context = Definition::ContextBuilder.new
+      child_context = Definition::ContextBuilder.new(component_name: self.class.name)
       child_context.instance_eval(&block)
       child_definition = child_context.build_definition
 

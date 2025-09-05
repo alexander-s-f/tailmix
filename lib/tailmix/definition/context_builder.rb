@@ -7,11 +7,12 @@ require_relative "contexts/variant_builder"
 module Tailmix
   module Definition
     class ContextBuilder
-      attr_reader :elements, :actions
+      attr_reader :elements, :actions, :component_name
 
-      def initialize
+      def initialize(component_name:)
         @elements = {}
         @actions = {}
+        @component_name = component_name
       end
 
       def element(name, base_classes = "", &block)
@@ -32,6 +33,7 @@ module Tailmix
 
       def build_definition
         Definition::Result::Context.new(
+          name: component_name,
           elements: @elements.transform_values(&:build_definition).freeze,
           actions: @actions.transform_values(&:build_definition).freeze,
         )

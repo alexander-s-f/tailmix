@@ -28,7 +28,8 @@ module Tailmix
   end
 
   def tailmix(dimensions = {})
-    self.class.tailmix_facade_class.new(self, self.class.tailmix_definition, dimensions)
+    id = dimensions.delete(:id)
+    self.class.tailmix_facade_class.new(self, self.class.tailmix_definition, dimensions, id: id)
   end
 end
 

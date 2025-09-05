@@ -3,9 +3,10 @@
 module Tailmix
   module Definition
     module Result
-      Context = Struct.new(:elements, :actions, keyword_init: true) do
+      Context = Struct.new(:name, :elements, :actions, keyword_init: true) do
         def to_h
           {
+            name: name,
             elements: elements.transform_values(&:to_h),
             actions: actions.transform_values(&:to_h),
           }

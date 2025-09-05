@@ -6,12 +6,14 @@ module Tailmix
   module Runtime
     class Context
       attr_reader :component_instance, :definition, :dimensions
+      attr_accessor :id
 
-      def initialize(component_instance, definition, dimensions)
+      def initialize(component_instance, definition, dimensions, id: nil)
         @component_instance = component_instance
         @definition = definition
         @dimensions = dimensions
         @attributes_cache = {}
+        @id = id
 
         Registry.instance.register(component_instance.class)
       end
@@ -57,7 +59,8 @@ module Tailmix
 
         attributes = HTML::Attributes.new(
           { class: element_def.attributes.classes },
-          element_name: element_def.name
+          element_name: element_def.name,
+          context: self
         )
 
         element_def.dimensions.each do |name, dim_def|
