@@ -1,31 +1,32 @@
 export class ActionDispatcher {
     constructor(component) {
         this.component = component;
-        this.bindActions();
+        const internalActionElements = this.component.element.querySelectorAll('[data-tailmix-action]');
+        internalActionElements.forEach(element => this.bindAction(element));
     }
 
-    bindActions() {
-        const actionElements = this.component.element.querySelectorAll('[data-tailmix-action]');
+    bindAction(element) {
+        const actionString = element.dataset.tailmixAction;
+        const [eventName, actionName] = actionString.split('->');
 
-        actionElements.forEach(element => {
-            const actionString = element.dataset.tailmixAction;
-            const [eventName, actionName] = actionString.split('->');
+        if (!eventName || !actionName) {
+            console.warn(`Tailmix: Invalid action string "${actionString}"`);
+            return;
+        }
 
-            if (!eventName || !actionName) {
-                console.warn(`Tailmix: Invalid action string "${actionString}"`);
-                return;
+        // We find the corresponding action in definition
+        const actionDefinition = this.component.definition.actions[actionName];
+        if (!actionDefinition) {
+            console.warn(`Tailmix: Action "${actionName}" not found in definition.`);
+            return;
+        }
+
+        element.addEventListener(eventName, (event) => {
+            // Let's make sure the trigger is not part of another component.
+            if (element.dataset.tailmixTriggerFor && element.closest('[data-tailmix-component]') !== this.component.element) {
+                // Logic to prevent double triggering, if needed
             }
-
-            // We find the corresponding action in definition
-            const actionDefinition = this.component.definition.actions[actionName];
-            if (!actionDefinition) {
-                console.warn(`Tailmix: Action "${actionName}" not found in definition.`);
-                return;
-            }
-
-            element.addEventListener(eventName, (event) => {
-                this.dispatch(actionDefinition, event);
-            });
+            this.dispatch(actionDefinition, event);
         });
     }
 

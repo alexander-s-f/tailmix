@@ -17,7 +17,7 @@ export class Updater {
      * @return {void} Does not return a value.
      */
     run(newState, oldState) {
-        // Проходим по каждому элементу, определенному в схеме (panel, overlay, etc.)
+        // We go through each element defined in the scheme (panel, overlay, etc.).
         for (const elementName in this.definition.elements) {
             const elementNode = this.component.elements[elementName];
             const elementDef = this.definition.elements[elementName];

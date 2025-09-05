@@ -12,7 +12,8 @@ export class Component {
         this.updater = new Updater(this);
         this.dispatcher = new ActionDispatcher(this);
 
-        console.log(`Tailmix component "${definition.component_name || 'Unnamed'}" initialized.`, this);
+        console.log(`Tailmix component "${definition.name || 'Unnamed'}" initialized.`, this);
+        console.log(definition);
 
         this.updater.run(this.state, {});
     }
@@ -44,7 +45,7 @@ export class Component {
             const name = node.dataset.tailmixElement;
             elements[name] = node;
         });
-        // Также добавляем сам корневой элемент, если у него есть имя
+        // We also add the root element itself, if it has a name.
         if (this.element.dataset.tailmixElement) {
             elements[this.element.dataset.tailmixElement] = this.element;
         }

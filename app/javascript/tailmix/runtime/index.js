@@ -1,9 +1,10 @@
 import { Component } from './component';
 
-const components = new Map();
-let definitions = {};
-
 const Tailmix = {
+    _namedInstances: {},
+    _components: new Map(),
+    _definitions: {},
+
     /**
      * Initializes the application by loading definitions, selecting all elements
      * with data attributes corresponding to components, and registering them as components.
@@ -12,11 +13,12 @@ const Tailmix = {
      */
     start() {
         this.loadDefinitions();
+        this._namedInstances = {};
 
         const componentElements = document.querySelectorAll('[data-tailmix-component]');
         componentElements.forEach(element => {
             const componentName = element.dataset.tailmixComponent;
-            const definition = definitions[componentName];
+            const definition = this._definitions[componentName];
 
             if (!definition) {
                 console.warn(`Tailmix: Definition for component "${componentName}" not found.`);
@@ -24,7 +26,25 @@ const Tailmix = {
             }
 
             const component = new Component(element, definition);
-            components.set(element, component);
+            this._components.set(element, component);
+
+            const componentId = element.dataset.tailmixId;
+            if (componentId) {
+                this._namedInstances[componentId] = component;
+            }
+        });
+
+        const triggerElements = document.querySelectorAll('[data-tailmix-trigger-for]');
+        triggerElements.forEach(element => {
+            const targetId = element.dataset.tailmixTriggerFor;
+            const targetComponent = this._namedInstances[targetId];
+
+            if (!targetComponent) {
+                console.warn(`Tailmix: Component with id "${targetId}" not found for trigger.`, element);
+                return;
+            }
+
+            targetComponent.dispatcher.bindAction(element);
         });
     },
 
@@ -39,7 +59,7 @@ const Tailmix = {
         const definitionsTag = document.querySelector('script[data-tailmix-definitions]');
         if (definitionsTag) {
             try {
-                definitions = JSON.parse(definitionsTag.textContent);
+                this._definitions = JSON.parse(definitionsTag.textContent);
             } catch (e) {
                 console.error("Tailmix: Failed to parse component definitions.", e);
             }
@@ -55,17 +75,15 @@ const Tailmix = {
      */
     getComponent(element) {
         const root = element.closest('[data-tailmix-component]');
-        return root ? components.get(root) : undefined;
+        return root ? this._components.get(root) : undefined;
     }
 };
 
 // Initialize Tailmix on page load
-document.addEventListener("turbo:load", () => Tailmix.start());
-if (document.readyState === "complete" || document.readyState === "interactive") {
+document.addEventListener("turbo:load", () => {
+    console.log("Tailmix starting...");
     Tailmix.start();
-} else {
-    document.addEventListener("DOMContentLoaded", () => Tailmix.start());
-}
+});
 
 
 export default Tailmix;
