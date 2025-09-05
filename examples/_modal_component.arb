@@ -1,36 +1,30 @@
 # Arbre view:
 
-modal = SuperModalComponent.new(size: :lg, open: true)
+modal_component = ModalComponent.new(open: false, id: :user_profile_modal)
+ui = modal_component.ui
 
-# modal.lock!
-ui = modal.ui
+button "Open Modal Outer", tailmix_trigger_for(:user_profile_modal, :toggle_open)
 
-div ui.base do
-  div ui.overlay
-  div ui.open do
-    "open"
-  end
+div class: "p-4"
 
-  div ui.panel do
-    button ui.close_button do
-      span "Close"
-    end
+div ui.container.component do
+  button "Open Modal", ui.open_button
 
-    h3 ui.title do
-      "Payment Successful"
-    end
+  div ui.base do
+    div ui.overlay
 
-    div ui.body do
-      "Your payment has been successfully submitted. We’ve sent you an email with all of the details of your order."
-    end
-
-    div ui.footer do
-      button ui.confirm_button do
-        span "Confirm Purchase"
-        div ui.spinner do
-          span "Loading..."
+    div ui.panel do
+      div ui.title do
+        h3 "Modal Title"
+        button ui.close_button do
+          text_node "✖"
         end
+      end
+
+      div ui.body do
+        para "This is the main content of the modal. It's powered by the new Tailmix Runtime!"
       end
     end
   end
 end
+
