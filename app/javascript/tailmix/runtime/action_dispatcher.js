@@ -40,22 +40,50 @@ export class ActionDispatcher {
      * @return {void} This method does not return any value.
      */
     dispatch(actionDefinition, event) {
-        console.log(`Dispatching action`, actionDefinition);
+        console.log(`Dispatching action`, { action: actionDefinition, event });
+
+        let payload = {};
+        const payloadAttr = event.currentTarget.dataset.tailmixActionPayload;
+        if (payloadAttr) {
+            try {
+                payload = JSON.parse(payloadAttr);
+            } catch (e) {
+                console.error("Tailmix: Invalid action payload JSON.", e);
+            }
+        }
 
         actionDefinition.transitions.forEach(transition => {
-            const { type, payload } = transition;
+            const { type, payload: transPayload } = transition;
 
             switch (type) {
                 case 'set_state':
-                    this.component.update(payload);
+                    const resolvedPayload = this.resolvePayload(transPayload, payload);
+                    this.component.update(resolvedPayload);
                     break;
                 case 'toggle_state':
-                    this.component.update({ [payload]: !this.component.state[payload] });
+                    this.component.update({ [transPayload]: !this.component.state[transPayload] });
                     break;
-                // refresh_state will be implemented later.
+                case 'merge_payload':
+                    this.component.update(payload);
+                    break;
                 default:
                     console.warn(`Tailmix: Unknown transition type "${type}"`);
             }
         });
+    }
+
+    resolvePayload(templatePayload, runtimePayload) {
+        const result = {};
+        for (const key in templatePayload) {
+            const value = templatePayload[key];
+            if (value && value.__type === 'payload_value') {
+                // Found the marker – taking the value from the runtime payload.
+                result[key] = runtimePayload[value.key];
+            } else {
+                // This is a static value - we just copy it.
+                result[key] = value;
+            }
+        }
+        return result;
     }
 }

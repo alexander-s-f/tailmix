@@ -41,7 +41,7 @@ export class Updater {
         const targetClasses = this.calculateTargetClasses(elementDef, newState);
         const currentClasses = new Set(elementNode.classList);
 
-        // Сравниваем текущие классы с целевыми и применяем разницу
+        // We compare current classes with target classes and apply the difference.
         targetClasses.forEach(cls => {
             if (!currentClasses.has(cls)) {
                 elementNode.classList.add(cls);
@@ -59,7 +59,21 @@ export class Updater {
             }
         });
 
-        // TODO: Add logic to update data- and aria- attributes
+        if (elementDef.attribute_bindings) {
+            for (const attrName in elementDef.attribute_bindings) {
+                const stateKey = elementDef.attribute_bindings[attrName];
+                const newValue = newState[stateKey];
+
+                // We update the attribute only if it has changed.
+                if (elementNode.getAttribute(attrName) !== newValue) {
+                    if (newValue === null || newValue === undefined) {
+                        elementNode.removeAttribute(attrName);
+                    } else {
+                        elementNode.setAttribute(attrName, newValue);
+                    }
+                }
+            }
+        }
     }
 
     /**
