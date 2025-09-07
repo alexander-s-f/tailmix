@@ -2,7 +2,7 @@
 
 module Tailmix
   module Definition
-    module Contexts
+    module Builders
       module Actions
         class ElementBuilder
           def initialize(default_method)

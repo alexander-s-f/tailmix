@@ -4,7 +4,7 @@ require_relative "variant_builder"
 
 module Tailmix
   module Definition
-    module Contexts
+    module Builders
       class DimensionBuilder
         def initialize(default: nil)
           @variants = {}

@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
-require_relative "contexts/action_builder"
-require_relative "contexts/element_builder"
-require_relative "contexts/variant_builder"
-require_relative "contexts/payload_proxy"
+require_relative "builders/action_builder"
+require_relative "builders/element_builder"
+require_relative "builders/variant_builder"
+require_relative "payload_proxy"
 
 module Tailmix
   module Definition
@@ -17,7 +17,7 @@ module Tailmix
       end
 
       def element(name, classes = "", &block)
-        builder = Contexts::ElementBuilder.new(name)
+        builder = Builders::ElementBuilder.new(name)
         builder.attributes.classes(classes.split)
 
         builder.instance_eval(&block) if block
@@ -27,8 +27,8 @@ module Tailmix
       end
 
       def action(name, &block)
-        builder = Contexts::ActionBuilder.new
-        proxy = Contexts::PayloadProxy.new
+        builder = Builders::ActionBuilder.new
+        proxy = Builders::PayloadProxy.new
         builder.instance_exec(proxy, &block)
         @actions[name.to_sym] = builder
       end

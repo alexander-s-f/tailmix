@@ -2,7 +2,7 @@
 
 module Tailmix
   module Definition
-    module Contexts
+    module Builders
       class AttributeBuilder
         def initialize
           @classes = []
