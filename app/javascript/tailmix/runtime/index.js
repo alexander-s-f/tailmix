@@ -1,31 +1,45 @@
-import { Component } from './component';
+import {Component} from './component';
+import {PluginManager} from './plugins';
 
+/**
+ * The Tailmix global object that manages the lifecycle of components and plugins.
+ * It provides methods for starting the application, hydration of components,
+ */
 const Tailmix = {
     _namedInstances: {},
     _components: new Map(),
     _definitions: {},
+    _pluginManager: new PluginManager(),
+    _observer: null,
 
     /**
-     * Initializes the application by loading definitions, selecting all elements
-     * with data attributes corresponding to components, and registering them as components.
-     *
-     * @return {void} This method does not return any value.
+     * Starts the Tailmix application by loading component definitions and initializing components.
      */
     start() {
         this.loadDefinitions();
         this._namedInstances = {};
+        this._components.clear();
 
-        const componentElements = document.querySelectorAll('[data-tailmix-component]');
+        this.hydrate(document.body);
+        this.observeChanges();
+    },
+
+    /**
+     * Hydrate components within the specified root element.
+     * @param rootElement
+     */
+    hydrate(rootElement) {
+        const componentElements = rootElement.querySelectorAll('[data-tailmix-component]');
         componentElements.forEach(element => {
+            if (this._components.has(element)) return;
+
             const componentName = element.dataset.tailmixComponent;
             const definition = this._definitions[componentName];
-
-            if (!definition) {
-                console.warn(`Tailmix: Definition for component "${componentName}" not found.`);
+            if (!definition) { /* ... */
                 return;
             }
 
-            const component = new Component(element, definition);
+            const component = new Component(element, definition, this._pluginManager);
             this._components.set(element, component);
 
             const componentId = element.dataset.tailmixId;
@@ -34,17 +48,14 @@ const Tailmix = {
             }
         });
 
-        const triggerElements = document.querySelectorAll('[data-tailmix-trigger-for]');
+        // External trigger binding
+        const triggerElements = rootElement.querySelectorAll('[data-tailmix-trigger-for]');
         triggerElements.forEach(element => {
             const targetId = element.dataset.tailmixTriggerFor;
             const targetComponent = this._namedInstances[targetId];
-
-            if (!targetComponent) {
-                console.warn(`Tailmix: Component with id "${targetId}" not found for trigger.`, element);
-                return;
+            if (targetComponent) {
+                targetComponent.dispatcher.bindAction(element);
             }
-
-            targetComponent.dispatcher.bindAction(element);
         });
     },
 
@@ -76,6 +87,36 @@ const Tailmix = {
     getComponent(element) {
         const root = element.closest('[data-tailmix-component]');
         return root ? this._components.get(root) : undefined;
+    },
+
+    registerPlugin(plugin) {
+        this._pluginManager.register(plugin);
+    },
+
+    /**
+     * Observes changes in the DOM and rehydrates components when they are added or modified.
+     */
+    observeChanges() {
+        if (this._observer) this._observer.disconnect();
+
+        this._observer = new MutationObserver(mutations => {
+            for (const mutation of mutations) {
+                if (mutation.type === 'childList') {
+                    mutation.addedNodes.forEach(node => {
+                        if (node.nodeType === Node.ELEMENT_NODE) {
+                            // If the component itself was added
+                            if (node.matches('[data-tailmix-component]')) {
+                                this.hydrate(node);
+                            }
+                            // If a parent was added, which may contain components
+                            this.hydrate(node);
+                        }
+                    });
+                }
+            }
+        });
+
+        this._observer.observe(document.body, {childList: true, subtree: true});
     }
 };
 
