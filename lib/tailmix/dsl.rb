@@ -1,15 +1,13 @@
 # frozen_string_literal: true
 
-require_relative "definition/context_builder"
+require_relative "definition/builders/component_builder"
 require_relative "definition/merger"
 require_relative "dev/tools"
 
 module Tailmix
-  # The main DSL for defining component styles and behaviors.
-  # This module is extended into any class that includes Tailmix.
   module DSL
     def tailmix(&block)
-      child_context = Definition::ContextBuilder.new(component_name: self.class.name)
+      child_context = Definition::Builders::ComponentBuilder.new(component_name: self)
       child_context.instance_eval(&block)
       child_definition = child_context.build_definition
 

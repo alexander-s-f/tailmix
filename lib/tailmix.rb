@@ -27,9 +27,8 @@ module Tailmix
     base.extend(DSL)
   end
 
-  def tailmix(dimensions = {})
-    id = dimensions.delete(:id)
-    self.class.tailmix_facade_class.new(self, self.class.tailmix_definition, dimensions, id: id)
+  def tailmix(id: nil, **initial_state)
+    self.class.tailmix_facade_class.new(self, self.class.tailmix_definition, initial_state, id: id)
   end
 end
 
