@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "stimulus_generator"
 require_relative "docs"
 
 module Tailmix
@@ -17,10 +16,6 @@ module Tailmix
         Dev::Docs.new(self).generate
       end
       alias_method :help, :docs
-
-      def stimulus
-        StimulusGenerator.new(@definition, @component_class.name)
-      end
 
       def elements
         @definition.elements.values.map(&:name)

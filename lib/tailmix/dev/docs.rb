@@ -18,12 +18,8 @@ module Tailmix
         output << ""
 
         output << generate_dimensions_docs
-        output << ""
-        output << generate_compound_variants_docs # <-- Наш новый метод
-        output << ""
+        output << generate_compound_variants_docs
         output << generate_actions_docs
-        output << ""
-        output << generate_stimulus_docs
 
         output.join("\n")
       end
@@ -70,6 +66,7 @@ module Tailmix
         end
 
         if compound_variants_by_element.any?
+          output << ""
           output << "Compound Variants:"
           compound_variants_by_element.each do |element|
             output << "  - on element `:#{element.name}`:"
@@ -86,6 +83,7 @@ module Tailmix
               output << "      - aria: #{modifications.aria.inspect}" if modifications.aria.any?
             end
           end
+          output << ""
         end
 
         output.join("\n")
@@ -105,10 +103,6 @@ module Tailmix
         end
 
         output.join("\n")
-      end
-
-      def generate_stimulus_docs
-        @tools.stimulus.scaffold(show_docs: true)
       end
 
       def all_dimensions

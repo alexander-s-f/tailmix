@@ -8,12 +8,10 @@ class ModalComponent
   attr_reader :ui
 
   tailmix do
-    # --- State and Elements ---
+    plugin :auto_focus, on: :open_button, delay: 100
+    state :open, default: false, toggle: true
 
     element :container do
-      # We define the state :open.  The initial value is `false`.
-      # The `:toggle` modifier automatically creates the `toggle_open` action for us.
-      state :open, default: false, toggle: true
     end
 
     element :open_button do
@@ -57,16 +55,15 @@ class ModalComponent
 end
 
 
-puts "-" * 100
-puts ModalComponent.dev.docs
-# puts ""
-
 modal = ModalComponent.new(open: false, id: :user_profile_modal)
 ui = modal.ui
 
 
 # puts "Definition:"
 # puts JSON.pretty_generate(stringify_keys(ModalComponent.tailmix_definition.to_h))
+puts "-" * 100
+puts ModalComponent.dev.docs
+puts "-" * 100
 
 ModalComponent.dev.elements.each do |element_name|
   element = ui.send(element_name)

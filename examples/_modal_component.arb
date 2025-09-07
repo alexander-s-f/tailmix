@@ -5,8 +5,6 @@ ui = modal_component.ui
 
 button "Open Modal Outer", tailmix_trigger_for(:user_profile_modal, :toggle_open)
 
-div class: "p-4"
-
 div ui.container.component do
   button "Open Modal", ui.open_button
 
