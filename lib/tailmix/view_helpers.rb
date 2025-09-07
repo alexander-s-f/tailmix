@@ -27,7 +27,7 @@ module Tailmix
     # @param action_name [String, Symbol] The name of the action to be called.
     # @param options [Hash]
     # @return [Hash]
-    def tailmix_trigger_for(target_id, action_name, options)
+    def tailmix_trigger_for(target_id, action_name, options = {})
       # target_id = options.fetch(:target_id)
       # action_name = options.fetch(:action_name)
 
