@@ -2,7 +2,6 @@
 
 module Tailmix
   module Runtime
-    # Builder that calculates the complete set of HTML attributes for a single element based on its definition (DSL) and the component's current state.
     class AttributeBuilder
       def initialize(element_def, state, context)
         @element_def = element_def
@@ -25,11 +24,10 @@ module Tailmix
       private
 
       def create_base_attributes
-        HTML::Attributes.new(
-          { class: @element_def.attributes.classes },
-          element_name: @element_def.name,
-          context: @context
+        base_attrs = @element_def.default_attributes.merge(
+          class: @element_def.attributes.classes
         )
+        HTML::Attributes.new(base_attrs, element_name: @element_def.name, context: @context)
       end
 
       # Applies classes and data/aria attributes from `dimension`.
@@ -39,11 +37,12 @@ module Tailmix
           next if value.nil?
 
           variant_def = dim_def.fetch(:variants, {}).fetch(value, nil)
-          next unless variant_def
 
+          next unless variant_def
           attributes.classes.add(variant_def.classes)
-          attributes.data.merge!(variant_def.data) if variant_def.data
-          attributes.aria.merge!(variant_def.aria) if variant_def.aria
+          attributes.data.merge!(variant_def.data)
+          attributes.aria.merge!(variant_def.aria)
+          attributes.merge!(variant_def.attributes)
         end
       end
 
@@ -61,8 +60,14 @@ module Tailmix
 
       # Applies one-way attribute bindings (`bind :src, to: :url`).
       def apply_attribute_bindings(attributes)
-        @element_def.attribute_bindings&.each do |attr_name, state_key|
-          value = @state[state_key]
+        @element_def.attribute_bindings&.each do |attr_name, state_key_or_proc|
+          next if %i[text html].include?(attr_name)
+
+          value = if state_key_or_proc.is_a?(Proc)
+            state_key_or_proc.call(@state)
+          else
+            @state[state_key_or_proc]
+          end
           attributes[attr_name] = value if value
         end
       end

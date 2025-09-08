@@ -2,6 +2,7 @@
 
 require_relative "action_builder"
 require_relative "element_builder"
+require_relative "reactor_builder"
 require_relative "../payload_proxy"
 
 module Tailmix
@@ -16,6 +17,7 @@ module Tailmix
           @elements = {}
           @component_name = component_name
           @plugins = {}
+          @reactions = {}
         end
 
         def state(name, default: nil, endpoint: nil, toggle: false)
@@ -44,12 +46,32 @@ module Tailmix
           @plugins[plugin_name] = options
         end
 
+        def react(on:, run: nil, **options, &block)
+          watched_states = Array(on)
+
+          # Processing the short form: `react on: :query, run: :search`
+          if run
+            builder = ReactorBuilder.new(watched_states.first)
+            builder.run(run, **options)
+            watched_states.each { |state| (@reactions[state] ||= []).concat(builder.build_rules) }
+            return
+          end
+
+          # Processing the full form with the block.
+          if block
+            builder = ReactorBuilder.new(watched_states.first)
+            builder.instance_eval(&block) # `instance_eval` чтобы не писать `r.`
+            watched_states.each { |state| (@reactions[state] ||= []).concat(builder.build_rules) }
+          end
+        end
+
         def build_definition
           Result::Context.new(
             name: component_name,
             states: @states.freeze,
             actions: @actions.transform_values(&:build_definition).freeze,
             elements: @elements.transform_values(&:build_definition).freeze,
+            reactions: @reactions.freeze,
             plugins: @plugins.freeze
           )
         end

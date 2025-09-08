@@ -3,23 +3,25 @@
 module Tailmix
   module Definition
     module Result
-      Context = Struct.new(:name, :states, :actions, :elements, :plugins, keyword_init: true) do
+      Context = Struct.new(:name, :states, :actions, :elements, :plugins, :reactions, keyword_init: true) do
         def to_h
           {
             name: name,
             states: states,
             actions: actions.transform_values(&:to_h),
             elements: elements.transform_values(&:to_h),
-            plugins: plugins
+            plugins: plugins,
+            reactions: reactions
           }
         end
       end
 
-      Element = Struct.new(:name, :attributes, :dimensions, :compound_variants, :event_bindings, :attribute_bindings, :model_bindings, keyword_init: true) do
+      Element = Struct.new(:name, :attributes, :dimensions, :compound_variants, :event_bindings, :attribute_bindings, :model_bindings, :default_attributes, keyword_init: true) do
         def to_h
           {
             name: name,
             attributes: attributes.to_h,
+            default_attributes: default_attributes,
             dimensions: dimensions.transform_values do |dimension|
               dimension.transform_values do |value|
                 case value
@@ -39,7 +41,7 @@ module Tailmix
         end
       end
 
-      Variant = Struct.new(:class_groups, :data, :aria, keyword_init: true) do
+      Variant = Struct.new(:class_groups, :data, :aria, :attributes, keyword_init: true) do
         def classes
           class_groups.flat_map { |group| group[:classes] }
         end
@@ -49,7 +51,8 @@ module Tailmix
             classes: classes,
             class_groups: class_groups,
             data: data,
-            aria: aria
+            aria: aria,
+            attributes: attributes
           }
         end
       end

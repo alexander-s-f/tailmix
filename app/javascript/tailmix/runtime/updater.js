@@ -1,23 +1,10 @@
-/**
- * Represents a class responsible for managing and updating the state-driven changes
- * for a component's elements. The Updater class ensures that the state of each element
- * aligns with the specified definitions and applies updates dynamically.
- */
 export class Updater {
     constructor(component) {
         this.component = component;
         this.definition = component.definition;
     }
 
-    /**
-     * Updates elements based on the provided new and old state by iterating through the defined schema.
-     *
-     * @param {Object} newState - The new state to apply to the elements.
-     * @param {Object} oldState - The previous state of the elements.
-     * @return {void} Does not return a value.
-     */
     run(newState, oldState) {
-        // We go through each element defined in the scheme (panel, overlay, etc.).
         for (const elementName in this.definition.elements) {
             const elementNode = this.component.elements[elementName];
             const elementDef = this.definition.elements[elementName];
@@ -28,16 +15,13 @@ export class Updater {
         }
     }
 
-    /**
-     * Updates the given HTML element's class list based on the target definition and state changes.
-     *
-     * @param {HTMLElement} elementNode - The target element whose classes need to be updated.
-     * @param {Object} elementDef - The definition of the element specifying its base and variant classes.
-     * @param {Object} newState - The new state that determines which classes should be applied to the element.
-     * @param {Object} oldState - The previous state used to compute the necessary changes to the element's classes.
-     * @return {void} This method does not return a value.
-     */
     updateElement(elementNode, elementDef, newState, oldState) {
+        this.updateClasses(elementNode, elementDef, newState);
+        this.updateAttributes(elementNode, elementDef, newState);
+        this.updateContent(elementNode, elementDef, newState);
+    }
+
+    updateClasses(elementNode, elementDef, newState) {
         const targetClasses = this.calculateTargetClasses(elementDef, newState);
         const currentClasses = new Set(elementNode.classList);
 
@@ -58,9 +42,13 @@ export class Updater {
                 }
             }
         });
+    }
 
+    updateAttributes(elementNode, elementDef, newState) {
         if (elementDef.attribute_bindings) {
             for (const attrName in elementDef.attribute_bindings) {
+                if (["text", "html"].includes(attrName)) continue;
+
                 const stateKey = elementDef.attribute_bindings[attrName];
                 const newValue = newState[stateKey];
 
@@ -76,13 +64,29 @@ export class Updater {
         }
     }
 
-    /**
-     * Calculates and returns a set of CSS classes based on the provided element definition and state.
-     *
-     * @param {Object} elementDef - The definition of the element containing dimensions, variants, and compound variants.
-     * @param {Object} state - The current state mapping dimensions to their selected values.
-     * @return {Set<string>} A set of CSS classes determined by the element definition and state.
-     */
+    updateContent(elementNode, elementDef, newState) {
+        const bindings = elementDef.attribute_bindings;
+        if (!bindings) return;
+
+        // Обработка `bind :text`
+        const textStateKey = bindings.text;
+        if (textStateKey !== undefined) {
+            const newText = newState[textStateKey] || '';
+            if (elementNode.textContent !== newText) {
+                elementNode.textContent = newText;
+            }
+        }
+
+        // Обработка `bind :html`
+        const htmlStateKey = bindings.html;
+        if (htmlStateKey !== undefined) {
+            const newHtml = newState[htmlStateKey] || '';
+            if (elementNode.innerHTML !== newHtml) {
+                elementNode.innerHTML = newHtml;
+            }
+        }
+    }
+
     calculateTargetClasses(elementDef, state) {
         const classes = new Set();
 
@@ -121,13 +125,6 @@ export class Updater {
         return classes;
     }
 
-    /**
-     * Determines if the specified class name is a variant class in the given element definition.
-     *
-     * @param {Object} elementDef - The element definition object containing dimensions and variants.
-     * @param {string} className - The name of the class to check for as a variant class.
-     * @return {boolean} Returns true if the className is found in the variants of the elementDef, otherwise false.
-     */
     isVariantClass(elementDef, className) {
         if (elementDef.dimensions) {
             for (const dimName in elementDef.dimensions) {

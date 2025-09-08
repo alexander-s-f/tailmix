@@ -10,6 +10,7 @@ module Tailmix
       class ElementBuilder
         def initialize(name)
           @name = name
+          @default_attributes = {}
           @dimensions = {}
           @compound_variants = []
           @event_bindings = []
@@ -19,6 +20,15 @@ module Tailmix
 
         def attributes
           @attributes_builder ||= AttributeBuilder.new
+        end
+
+        def method_missing(name, *args, &block)
+          attribute_name = name.to_s.chomp("=").to_sym
+          @default_attributes[attribute_name] = args.first
+        end
+
+        def respond_to_missing?(*_args)
+          true
         end
 
         def on(event_name, action_name, with: nil, **options)
@@ -59,6 +69,7 @@ module Tailmix
           Result::Element.new(
             name: @name,
             attributes: attributes.build_definition,
+            default_attributes: @default_attributes.freeze,
             dimensions: @dimensions.freeze,
             compound_variants: @compound_variants.freeze,
             event_bindings: @event_bindings.freeze,

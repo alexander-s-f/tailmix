@@ -13,12 +13,12 @@ module Tailmix
 
         def variant(name, classes = "", data: {}, aria: {}, &block)
           builder = VariantBuilder.new
+
           builder.classes(classes) if classes && !classes.empty?
           builder.data(data)
           builder.aria(aria)
 
           builder.instance_eval(&block) if block
-
           @variants[name] = builder.build_variant
         end
 
