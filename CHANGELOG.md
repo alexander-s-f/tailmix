@@ -3,3 +3,11 @@
 ## [0.1.0] - 2025-08-12
 
 - Initial release
+
+## [0.4.8] - 2025-09-08
+
+- New DSL
+- State management
+- Reactions
+- Actions
+- Plugin system
