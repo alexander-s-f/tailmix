@@ -1,5 +1,6 @@
 import {ActionDispatcher} from './action_dispatcher';
 import {Updater} from './updater';
+import { ReactionEngine } from './reaction_engine';
 
 /**
  * Represents a component instance that manages the state and behavior of a specific UI element.
@@ -14,6 +15,7 @@ export class Component {
         this.elements = this.findElements();
         this.updater = new Updater(this);
         this.dispatcher = new ActionDispatcher(this);
+        this.reactionEngine = new ReactionEngine(this);
 
         // --- API ---
         this.api = {
@@ -49,10 +51,23 @@ export class Component {
      * @param newState
      */
     update(newState) {
-        const oldState = {...this._state};
+        const oldState = { ...this._state };
+        const changedKeys = new Set();
+
+        for (const key in newState) {
+            if (this._state[key] !== newState[key]) {
+                changedKeys.add(key);
+            }
+        }
+
+        // If nothing has changed, we exit.
+        if (changedKeys.size === 0) return;
+
         Object.assign(this._state, newState);
         this.element.dataset.tailmixState = JSON.stringify(this._state);
+
         this.updater.run(this._state, oldState);
+        this.reactionEngine.run(changedKeys);
     }
 
     /**
