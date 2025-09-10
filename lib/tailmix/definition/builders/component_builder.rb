@@ -15,9 +15,9 @@ module Tailmix
           @states = {}
           @actions = {}
           @elements = {}
-          @component_name = component_name
           @plugins = {}
           @reactions = {}
+          @component_name = component_name
         end
 
         def state(name, default: nil, endpoint: nil, toggle: false)
@@ -46,22 +46,15 @@ module Tailmix
           @plugins[plugin_name] = options
         end
 
-        def react(on:, run: nil, **options, &block)
+        def react(on:, &block)
           watched_states = Array(on)
 
-          # Processing the short form: `react on: :query, run: :search`
-          if run
-            builder = ReactorBuilder.new(watched_states.first)
-            builder.run(run, **options)
-            watched_states.each { |state| (@reactions[state] ||= []).concat(builder.build_rules) }
-            return
-          end
+          builder = ReactorBuilder.new
+          builder.instance_exec(builder, &block)
 
-          # Processing the full form with the block.
-          if block
-            builder = ReactorBuilder.new(watched_states.first)
-            builder.instance_eval(&block) # `instance_eval` чтобы не писать `r.`
-            watched_states.each { |state| (@reactions[state] ||= []).concat(builder.build_rules) }
+          pipelines = builder.build_pipelines
+          watched_states.each do |state|
+            (@reactions[state] ||= []).concat(pipelines)
           end
         end
 
