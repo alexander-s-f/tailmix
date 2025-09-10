@@ -20,7 +20,11 @@ div ui.container.component do
       end
 
       div ui.body do
-        para "This is the main content of the modal. It's powered by the new Tailmix Runtime!"
+        para "This is the main content of the modal. It's powered by the new Tailmix Runtime!", class: "pb-4"
+
+        input ui.input
+        div ui.result
+        div ui.text
       end
     end
   end

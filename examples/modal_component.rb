@@ -10,12 +10,17 @@ class ModalComponent
   tailmix do
     plugin :auto_focus, on: :open_button, delay: 100
     state :open, default: false, toggle: true
+    state :value, default: ""
+    state :text, default: ""
+
+    react on: :value do |r|
+      # TODO: new dsl & interpreter
+    end
 
     element :container do
     end
 
     element :open_button do
-      # We attach the `click` event to our auto-generated action.
       on :click, :toggle_open
     end
 
@@ -34,19 +39,34 @@ class ModalComponent
       on :click, :toggle_open
     end
 
-    element :panel, "relative bg-white rounded-lg shadow-xl" do
+    element :panel, "relative bg-gray-800 text-gray-200 rounded-lg shadow-xl" do
       dimension :open do
         variant true, "block"
         variant false, "hidden"
       end
     end
 
+    element :input, "border text-sm rounded-lg block w-full p-2.5 bg-gray-700" do
+      type "text"
+      placeholder "Type something here..."
+
+      model :value, to: :value
+    end
+
+    element :result, "text-xl p-4 min-h-[2em]" do
+      bind :text, to: :value
+    end
+
+    element :text, "text-xl p-4 min-h-[2em]" do
+      bind :text, to: :text
+    end
+
     element :close_button, "absolute top-2 right-2 p-1 text-gray-500 rounded-full cursor-pointer" do
       on :click, :toggle_open
     end
 
-    element :title, "text-lg font-semibold text-gray-900 p-4 border-b"
-    element :body, "p-4 text-gray-900"
+    element :title, "text-lg font-semibold p-4 border-gray-600"
+    element :body, "p-4"
   end
 
   def initialize(open: false, id: nil)
