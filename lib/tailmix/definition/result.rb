@@ -8,7 +8,7 @@ module Tailmix
           {
             name: name,
             states: states,
-            actions: actions.transform_values(&:to_h),
+            actions: actions,
             elements: elements.transform_values(&:to_h),
             plugins: plugins,
             reactions: reactions
