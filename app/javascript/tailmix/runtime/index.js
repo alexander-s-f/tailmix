@@ -1,9 +1,8 @@
-import {Component} from './component';
-import {PluginManager} from './plugins';
+import { Component } from './component';
+import { PluginManager } from './plugins';
 
 /**
  * The Tailmix global object that manages the lifecycle of components and plugins.
- * It provides methods for starting the application, hydration of components,
  */
 const Tailmix = {
     _namedInstances: {},
@@ -26,7 +25,7 @@ const Tailmix = {
 
     /**
      * Hydrate components within the specified root element.
-     * @param rootElement
+     * @param {HTMLElement} rootElement The element to search for components within.
      */
     hydrate(rootElement) {
         const componentElements = rootElement.querySelectorAll('[data-tailmix-component]');
@@ -35,7 +34,8 @@ const Tailmix = {
 
             const componentName = element.dataset.tailmixComponent;
             const definition = this._definitions[componentName];
-            if (!definition) { /* ... */
+            if (!definition) {
+                console.warn(`Tailmix: Definition for component "${componentName}" not found.`);
                 return;
             }
 
@@ -48,23 +48,28 @@ const Tailmix = {
             }
         });
 
-        // External trigger binding
+        // NEW: Re-introduced logic for binding external triggers.
         const triggerElements = rootElement.querySelectorAll('[data-tailmix-trigger-for]');
         triggerElements.forEach(element => {
+            // Avoid re-binding if the element has already been processed (e.g., inside a component).
+            if (element.dataset.tailmixTriggerBound) return;
+
             const targetId = element.dataset.tailmixTriggerFor;
             const targetComponent = this._namedInstances[targetId];
+
             if (targetComponent) {
-                targetComponent.dispatcher.bindAction(element);
+                // We ask the TriggerManager of the TARGET component to bind this external element.
+                targetComponent.triggerManager.bindAction(element);
+                element.dataset.tailmixTriggerBound = "true"; // Mark as bound
+            } else {
+                // This can happen if the target component is not yet on the page.
+                // The observer will handle it when it appears.
             }
         });
     },
 
     /**
-     * Loads and parses the component definitions from a script tag with the attribute `data-tailmix-definitions`.
-     * If a valid JSON content is found, it assigns it to the `definitions` variable.
-     * Logs an error message to the console in case of parsing failure.
-     *
-     * @return {void} Does not return a value.
+     * Loads and parses the component definitions from the dedicated script tag.
      */
     loadDefinitions() {
         const definitionsTag = document.querySelector('script[data-tailmix-definitions]');
@@ -78,11 +83,9 @@ const Tailmix = {
     },
 
     /**
-     * Retrieves a component associated with the nearest ancestor element
-     * that has the `data-tailmix-component` attribute.
-     *
-     * @param {Element} element - The DOM element from which the component search begins.
-     * @return {*} The component associated with the identified ancestor element, or `undefined` if no component is found.
+     * Retrieves a component instance associated with a given DOM element.
+     * @param {Element} element The DOM element.
+     * @returns {Component | undefined}
      */
     getComponent(element) {
         const root = element.closest('[data-tailmix-component]');
@@ -94,7 +97,7 @@ const Tailmix = {
     },
 
     /**
-     * Observes changes in the DOM and rehydrates components when they are added or modified.
+     * Observes DOM changes to automatically hydrate new components and bind triggers.
      */
     observeChanges() {
         if (this._observer) this._observer.disconnect();
@@ -104,11 +107,7 @@ const Tailmix = {
                 if (mutation.type === 'childList') {
                     mutation.addedNodes.forEach(node => {
                         if (node.nodeType === Node.ELEMENT_NODE) {
-                            // If the component itself was added
-                            if (node.matches('[data-tailmix-component]')) {
-                                this.hydrate(node);
-                            }
-                            // If a parent was added, which may contain components
+                            // If the added node is a component or contains components/triggers
                             this.hydrate(node);
                         }
                     });
@@ -116,11 +115,11 @@ const Tailmix = {
             }
         });
 
-        this._observer.observe(document.body, {childList: true, subtree: true});
+        this._observer.observe(document.body, { childList: true, subtree: true });
     }
 };
 
-// Initialize Tailmix on page load
+// Initialize Tailmix when the page loads or Turbo navigates.
 document.addEventListener("turbo:load", () => {
     console.log("Tailmix starting...");
     Tailmix.start();

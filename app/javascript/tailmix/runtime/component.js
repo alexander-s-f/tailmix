@@ -1,11 +1,12 @@
-import {ActionDispatcher} from './action_dispatcher';
-import {Updater} from './updater';
+// app/javascript/tailmix/runtime/component.js
+
+import { Updater } from './updater';
+import { Interpreter } from './interpreter';
+import { TriggerManager } from './trigger_manager';
 import { ReactionEngine } from './reaction_engine';
 
 /**
  * Represents a component instance that manages the state and behavior of a specific UI element.
- * The Component class is responsible for loading and initializing the component's state,
- * finding and managing its elements, and updating the UI based on the component's state.
  */
 export class Component {
     constructor(element, definition, pluginManager) {
@@ -13,9 +14,12 @@ export class Component {
         this.definition = definition;
         this._state = this.loadInitialState();
         this.elements = this.findElements();
+
+        // NEW: Instantiate the core parts of the new engine
         this.updater = new Updater(this);
-        this.dispatcher = new ActionDispatcher(this);
-        this.reactionEngine = new ReactionEngine(this);
+        this.interpreter = new Interpreter(this);
+        this.triggerManager = new TriggerManager(this, this.interpreter);
+        this.reactionEngine = new ReactionEngine(this, this.interpreter);
 
         // --- API ---
         this.api = {
@@ -24,16 +28,26 @@ export class Component {
             },
             setState: (newState) => this.update(newState),
             element: (name) => this.elements[name],
-            runAction: (name, payload) => this.dispatcher.runActionByName(name, payload),
+            // Allows running an action programmatically
+            runAction: (name, event = null) => {
+                const actionDef = this.definition.actions[name];
+                if (actionDef?.expressions) {
+                    this.interpreter.run(actionDef.expressions, event);
+                } else {
+                    console.warn(`Tailmix: Action "${name}" not found.`);
+                }
+            },
             dispatch: (name, detail) => this.dispatch(name, detail),
             on: (name, callback) => this.element.addEventListener(`tailmix:${name}`, callback),
         };
 
-        this.initializeModels();
+        // Initialize everything
+        this.triggerManager.bindActions();
+        this.initializeModels(); // Keep this for `model` bindings
         this.updater.run(this._state, {});
         pluginManager.connect(this);
 
-        console.log(`Tailmix component "${this.definition.name || 'Unnamed'}" initialized.`, this);
+        console.log(`Tailmix component "${this.definition.name || 'Unnamed'}" initialized with new engine.`, this);
     }
 
     /**
@@ -45,10 +59,8 @@ export class Component {
     }
 
     /**
-     * Updates the component's state with the provided new state and triggers the update mechanism.
-     * The previous state is logged for debugging purposes.
-     '
-     * @param newState
+     * Updates the component's state and triggers the update/reaction cycle.
+     * @param {Object} newState A hash of state keys and their new values.
      */
     update(newState) {
         const oldState = { ...this._state };
@@ -60,7 +72,6 @@ export class Component {
             }
         }
 
-        // If nothing has changed, we exit.
         if (changedKeys.size === 0) return;
 
         Object.assign(this._state, newState);
@@ -71,9 +82,9 @@ export class Component {
     }
 
     /**
-     * Dispatches a custom event with the specified name and detail.
-     * @param {string} name - The name of the event to be dispatched.
-     * @param {any} detail - The detail object to be attached to the event.
+     * Dispatches a custom event from the component's root element.
+     * @param {string} name The name of the event (without the 'tailmix:' prefix).
+     * @param {any} detail The data to be attached to the event.
      */
     dispatch(name, detail) {
         const event = new CustomEvent(`tailmix:${name}`, {bubbles: true, detail});
@@ -97,12 +108,8 @@ export class Component {
     }
 
     /**
-     * Finds and retrieves all elements with a specific data attribute (`data-tailmix-element`)
-     * within the current root element, and maps their associated names to the DOM nodes.
-     * The root element itself is included if it also has the attribute with a defined name.
-     *
-     * @return {Object} An object where the keys are the names specified in the `data-tailmix-element`
-     *                  attribute, and the values are the corresponding DOM nodes.
+     * Finds all named elements within the component's scope.
+     * @return {Object<string, HTMLElement>} A map of element names to DOM nodes.
      */
     findElements() {
         const elements = {};
@@ -111,7 +118,6 @@ export class Component {
             const name = node.dataset.tailmixElement;
             elements[name] = node;
         });
-        // We also add the root element itself, if it has a name.
         if (this.element.dataset.tailmixElement) {
             elements[this.element.dataset.tailmixElement] = this.element;
         }
@@ -119,11 +125,7 @@ export class Component {
     }
 
     /**
-     * Initializes models by binding event listeners to elements and updating state accordingly.
-     * This method iterates through the component's elements and model bindings,
-     * and sets up event listeners for each attribute that needs to be updated.
-     *
-     * @return {void} This method does not return a value.
+     * Initializes two-way data bindings defined with `model`.
      */
     initializeModels() {
         for (const elName in this.definition.elements) {
@@ -135,9 +137,6 @@ export class Component {
                 const binding = modelBindings[attrName];
                 element.addEventListener(binding.event, (event) => {
                     this.update({[binding.state]: event.target[attrName]});
-                    if (binding.action) {
-                        // It is possible to add action execution after model update.
-                    }
                 });
             }
         }
