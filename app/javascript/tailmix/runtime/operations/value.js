@@ -18,12 +18,8 @@ export const ValueOperations = {
     },
 
     log: async (interpreter, args, context) => {
-        const resolvedArgs = await Promise.all(args.map(arg => interpreter.eval(arg, context)));
+        const evalPromises = args.map(arg => interpreter.eval(arg, context));
+        const resolvedArgs = await Promise.all(evalPromises);
         console.log('[Tailmix Interpreter Log]', ...resolvedArgs);
-    },
-
-    response: (interpreter, args, context) => {
-        // `context` temporary response context
-        return args.reduce((obj, key) => obj?.[key], context);
     },
 };

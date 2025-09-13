@@ -15,9 +15,9 @@ export const LogicalOperations = {
     if: async (interpreter, args, context) => {
         const [condition, thenBranch, elseBranch] = args;
         if (await interpreter.eval(condition, context)) {
-            await interpreter.evalBranch(thenBranch, context);
+            await interpreter.run(thenBranch, context);
         } else if (elseBranch) {
-            await interpreter.evalBranch(elseBranch, context);
+            await interpreter.run(elseBranch, context);
         }
     },
 };

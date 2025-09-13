@@ -5,6 +5,11 @@ export const HttpOperations = {
         const { url, method = 'get', params = {}, service } = options;
 
         const resolvedUrl = await interpreter.eval(url, context);
+        if (!resolvedUrl) {
+            console.error("Tailmix fetch error: URL resolved to undefined.", { url });
+            return;
+        }
+
         const urlWithParams = new URL(resolvedUrl, window.location.origin);
         const fetchOptions = {
             method: method.toUpperCase(),
@@ -48,7 +53,11 @@ export const HttpOperations = {
         }
 
         if (callbackBody) {
-            await interpreter.run(callbackBody, responseContext);
+            interpreter._responseContext = responseContext;
+            await interpreter.run(callbackBody, context);
+            interpreter._responseContext = null;
         }
     },
 };
+
+

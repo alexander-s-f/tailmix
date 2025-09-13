@@ -69,8 +69,9 @@ export class Updater {
         const textStateKey = bindings.text;
         if (textStateKey !== undefined) {
             const newText = newState[textStateKey] ?? '';
-            if (elementNode.textContent !== String(newText)) { // Ensure we compare strings
-                elementNode.textContent = newText;
+            const textToRender = typeof newText === 'object' && newText !== null ? JSON.stringify(newText) : newText;
+            if (elementNode.textContent !== String(textToRender)) {
+                elementNode.textContent = textToRender;
             }
         }
 

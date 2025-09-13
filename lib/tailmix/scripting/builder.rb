@@ -1,12 +1,10 @@
 # frozen_string_literal: true
 
+require_relative "expression_builder"
 require_relative "response_builder"
 
 module Tailmix
   module Scripting
-    # The Builder provides a high-level DSL for generating S-expressions.
-    # An instance of this builder is passed to the `action` and `reaction` blocks
-    # in the component definition.
     class Builder
       attr_reader :expressions
 
@@ -15,27 +13,43 @@ module Tailmix
         @expressions = []
       end
 
-      # Calls another action by its name.
       def call(action_name, payload = {})
-        # For now, payload is not implemented, but we reserve the API.
-        @expressions << [ :call, action_name ]
+        @expressions << [ :call, action_name, resolve_expressions(payload) ]
         self
       end
 
-      # Finds and expands a macro by its name.
       def expand_macro(name, *args)
         macro_def = @component_builder.macros[name.to_sym]
         raise Error, "Macro '#{name}' not found." unless macro_def
+
         macro_builder = self.class.new(@component_builder)
-        macro_builder.instance_exec(*args, &macro_def[:block])
+        resolved_args = args.map { |arg| resolve_expressions(arg) }
+        macro_builder.instance_exec(*resolved_args, &macro_def[:block])
+
         @expressions.concat(macro_builder.expressions)
         self
       end
 
-      # --- State Manipulation ---
+      def fetch(url, method: :get, params: {}, service: nil, &block)
+        options = {
+          url: url,
+          method: method,
+          params: resolve_expressions(params),
+          service: service&.to_s
+        }.compact
+
+        callback_builder = self.class.new(@component_builder)
+        response_builder = ResponseBuilder.new
+        callback_builder.instance_exec(response_builder, &block)
+
+        @expressions << [ :fetch, options, callback_builder.expressions ]
+        self
+      end
+
+      # --- State & Collection Methods ---
 
       def set(key, value)
-        @expressions << [ :set, key, value ]
+        @expressions << [ :set, key, resolve_expressions(value) ]
         self
       end
 
@@ -45,82 +59,69 @@ module Tailmix
       end
 
       def increment(key, by: 1)
-        @expressions << [ :increment, key, by ]
+        @expressions << [ :increment, key, resolve_expressions(by) ]
         self
       end
-
-      # --- Collection Manipulation ---
+      alias_method :inc, :increment
 
       def push(key, value)
-        @expressions << [ :array_push, key, value ]
+        @expressions << [ :array_push, key, resolve_expressions(value) ]
         self
       end
 
       def remove_at(key, index)
-        @expressions << [ :array_remove_at, key, index ]
+        @expressions << [ :array_remove_at, key, resolve_expressions(index) ]
         self
       end
 
       def update_at(key, index, value)
-        @expressions << [ :array_update_at, key, index, value ]
+        @expressions << [ :array_update_at, resolve_expressions(index), resolve_expressions(value) ]
         self
       end
 
-      # --- Server Interaction ---
+      # --- Control Flow & Value Methods ---
 
-      def fetch(url, method: :get, params: {}, service: nil, &block)
-        options = {
-          url: url,
-          method: method,
-          params: params,
-          service: service&.to_s
-        }.compact
-
-        callback_builder = self.class.new(@component_builder)
-        response_builder = Tailmix::Scripting::ResponseBuilder.new
-
-        callback_builder.instance_exec(response_builder, &block)
-
-        @expressions << [:fetch, options, callback_builder.expressions]
-        self
-      end
-
-      # --- Control Flow ---
-
-      def if_(condition)
+      def if_(condition, &block)
         then_builder = self.class.new(@component_builder)
         yield(then_builder)
-
-        # .to_a unfolds ExpressionBuilder back into an S-expression
-        @expressions << [ :if, condition.to_a, then_builder.expressions ]
+        @expressions << [ :if, resolve_expressions(condition), then_builder.expressions ]
         self
       end
       alias_method :if?, :if_
 
-      def not_(expression)
-        [ :not, expression.to_a ]
-      end
-      alias_method :not?, :not_
-
       def state(key)
         ExpressionBuilder.new([ :state, key ])
       end
+      alias_method :s, :state
+
+      def not_(expression)
+        [ :not, resolve_expressions(expression) ]
+      end
+      alias_method :not?, :not_
 
       def concat(*args)
-        # This is a value-producing method, so it returns an S-expression
-        # instead of adding one to the @expressions list.
-        [ :concat, *args ]
+        [ :concat, *args.map { |arg| resolve_expressions(arg) } ]
       end
-
-      def now
-        [ :now ]
-      end
-
-      # --- Debugging ---
 
       def log(*args)
-        @expressions << [ :log, *args ]
+        @expressions << [ :log, *args.map { |arg| resolve_expressions(arg) } ]
         self
+      end
+
+
+      private
+
+      def resolve_expressions(value)
+        case value
+        when ExpressionBuilder, ResponseBuilder
+          value.to_a
+        when Hash
+          value.transform_values { |v| resolve_expressions(v) }
+        when Array
+          value.map { |v| resolve_expressions(v) }
+        else
+          value
+        end
       end
     end
   end

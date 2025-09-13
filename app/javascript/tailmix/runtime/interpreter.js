@@ -21,9 +21,15 @@ const OPERATIONS = {
 export class Interpreter {
     constructor(component) {
         this.component = component;
+        this._responseContext = null;
     }
 
     async run(expressions, context = {}) {
+        if (!Array.isArray(expressions)) {
+            console.error("Tailmix Interpreter Error: `run` was called with a non-array value.", expressions);
+            return;
+        }
+
         for (const expr of expressions) {
             await this.eval(expr, context);
         }
@@ -33,18 +39,29 @@ export class Interpreter {
         if (!Array.isArray(expression)) {
             return expression;
         }
+
         if (expression.length === 0) {
             return null;
         }
 
         const [op, ...args] = expression;
-        const handler = OPERATIONS[op];
 
+        if (op === 'response') {
+            if (!this._responseContext) {
+                console.warn("Tailmix: `:response` can only be used inside a `fetch` callback.");
+                return null;
+            }
+            // The `response` operation ALWAYS reads from the temporary response context.
+            return args.reduce((obj, key) => obj?.[key], this._responseContext);
+        }
+
+        const handler = OPERATIONS[op];
         if (!handler) {
             console.warn(`Tailmix: Unknown operation "${op}"`);
             return;
         }
 
+        // Call the handler, passing the interpreter instance, args, and the current context.
         return await handler(this, args, context);
     }
 
