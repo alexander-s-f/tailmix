@@ -8,6 +8,7 @@ require_relative "tailmix/runtime"
 require_relative "tailmix/middleware/registry_cleaner"
 require_relative "tailmix/view_helpers"
 require_relative "tailmix/scripting"
+require_relative "tailmix/service"
 
 module Tailmix
   class Error < StandardError; end
