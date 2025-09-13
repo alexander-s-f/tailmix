@@ -15,17 +15,35 @@ module Tailmix
       def gt(value)
         # We need to handle cases where `value` is another ExpressionBuilder
         other_expr = value.is_a?(ExpressionBuilder) ? value.expression : value
-        self.class.new([:gt, @expression, other_expr])
+        self.class.new([ :gt, @expression, other_expr ])
       end
 
       def lt(value)
         other_expr = value.is_a?(ExpressionBuilder) ? value.expression : value
-        self.class.new([:lt, @expression, other_expr])
+        self.class.new([ :lt, @expression, other_expr ])
       end
 
       def eq(value)
         other_expr = value.is_a?(ExpressionBuilder) ? value.expression : value
-        self.class.new([:eq, @expression, other_expr])
+        self.class.new([ :eq, @expression, other_expr ])
+      end
+
+      def and(other_expression)
+        self.class.new([ :and, @expression, other_expression.to_a ])
+      end
+
+      def or(other_expression)
+        self.class.new([ :or, @expression, other_expression.to_a ])
+      end
+
+      def add(value)
+        other_expr = value.is_a?(ExpressionBuilder) ? value.expression : value
+        self.class.new([ :add, @expression, other_expr ])
+      end
+
+      def subtract(value)
+        other_expr = value.is_a?(ExpressionBuilder) ? value.expression : value
+        self.class.new([ :subtract, @expression, other_expr ])
       end
 
       # This allows the builder to be used directly as an argument

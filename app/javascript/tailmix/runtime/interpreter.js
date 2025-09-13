@@ -1,41 +1,20 @@
-/**
- * The Interpreter is responsible for evaluating S-expressions on the client-side.
- * It takes an array of expressions and a context (component, event, etc.) and
- * executes the operations, primarily by updating the component's state.
- */
+// app/javascript/tailmix/runtime/interpreter.js
+
 export class Interpreter {
-    /**
-     * @param {import('./component').Component} component The component instance.
-     */
     constructor(component) {
         this.component = component;
     }
 
-    /**
-     * Evaluates a list of S-expressions in the context of the component.
-     * @param {Array<Array<any>>} expressions An array of S-expressions.
-     * @param {Event} [event=null] The DOM event that triggered the evaluation.
-     */
-    run(expressions, event = null) {
-        // The `eval` method will now read fresh state directly from the component.
-        const context = {
-            event: event,
-        };
-
+    async run(expressions, event = null) {
+        const context = { event: event };
         for (const expr of expressions) {
-            this.eval(expr, context);
+            await this.eval(expr, context);
         }
     }
 
-    /**
-     * Evaluates a single S-expression recursively.
-     * @param {any} expression The expression or literal to evaluate.
-     * @param {object} context The current execution context.
-     * @returns {any} The result of the evaluation.
-     */
-    eval(expression, context) {
+    async eval(expression, context) {
         if (!Array.isArray(expression)) {
-            return expression; // It's a literal value
+            return expression;
         }
         if (expression.length === 0) {
             return null;
@@ -54,7 +33,7 @@ export class Interpreter {
             // State Manipulation
             case 'set': {
                 const [key, value] = args;
-                this.component.update({ [key]: this.eval(value, context) });
+                this.component.update({ [key]: await this.eval(value, context) });
                 return;
             }
             case 'toggle': {
@@ -65,37 +44,97 @@ export class Interpreter {
             case 'increment': {
                 const [key, by = 1] = args;
                 const currentValue = this.component.state[key] || 0;
-                this.component.update({ [key]: currentValue + this.eval(by, context) });
+                this.component.update({ [key]: currentValue + (await this.eval(by, context)) });
+                return;
+            }
+
+            // Collection Manipulation
+            case 'array_push': {
+                const [key, value] = args;
+                const currentArray = this.component.state[key] || [];
+                const newValue = await this.eval(value, context);
+                this.component.update({ [key]: [...currentArray, newValue] });
+                return;
+            }
+            case 'array_remove_at': {
+                const [key, index] = args;
+                const currentArray = this.component.state[key] || [];
+                const resolvedIndex = await this.eval(index, context);
+                const newArray = currentArray.filter((_, i) => i !== resolvedIndex);
+                this.component.update({ [key]: newArray });
+                return;
+            }
+            case 'array_update_at': {
+                const [key, index, value] = args;
+                const currentArray = this.component.state[key] || [];
+                const resolvedIndex = await this.eval(index, context);
+                const newValue = await this.eval(value, context);
+                const newArray = currentArray.map((item, i) => (i === resolvedIndex ? newValue : item));
+                this.component.update({ [key]: newArray });
                 return;
             }
 
             // Control Flow
             case 'if': {
                 const [condition, thenBranch, elseBranch] = args;
-                if (this.eval(condition, context)) {
-                    this.evalBranch(thenBranch, context);
+                if (await this.eval(condition, context)) {
+                    await this.evalBranch(thenBranch, context);
                 } else if (elseBranch) {
-                    this.evalBranch(elseBranch, context);
+                    await this.evalBranch(elseBranch, context);
                 }
                 return;
             }
 
-            // Value Retrieval & Comparison
-            case 'state':
-                return this.component.state[args[0]];
-            case 'event': // Allows access to event properties, e.g., ['event', 'target.value']
-                return args[0].split('.').reduce((obj, key) => obj?.[key], context.event);
-            case 'eq':
-                return this.eval(args[0], context) === this.eval(args[1], context);
-            case 'lt':
-                return this.eval(args[0], context) < this.eval(args[1], context);
-            case 'gt':
-                return this.eval(args[0], context) > this.eval(args[1], context);
-            case 'concat':
-                return args.map(arg => this.eval(arg, context)).join('');
+            // Server Interaction
+            case 'fetch': {
+                const [url, options = {}] = args;
+                const { then: thenAction, catch: catchAction, params = {} } = options;
+                const urlWithParams = new URL(url, window.location.origin);
+
+                // Await parameter resolution before fetching
+                for (const [key, value] of Object.entries(params)) {
+                    urlWithParams.searchParams.append(key, await this.eval(value, context));
+                }
+
+                try {
+                    const response = await fetch(urlWithParams.toString());
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    const data = await response.json();
+                    if (thenAction) this.component.api.runAction(thenAction, { payload: data });
+                } catch (error) {
+                    console.error("Tailmix fetch error:", error);
+                    if (catchAction) this.component.api.runAction(catchAction, { payload: { message: error.message } });
+                }
+                return;
+            }
+
+            // Value Retrieval
+            case 'state': return this.component.state[args[0]];
+            case 'event': return args[0].split('.').reduce((obj, key) => obj?.[key], context.event);
+            case 'now': return new Date().toISOString();
+
+            // Value Computation
+            case 'concat': {
+                const resolvedArgs = await Promise.all(args.map(arg => this.eval(arg, context)));
+                return resolvedArgs.join('');
+            }
+
+            // Logical
+            case 'and': return (await this.eval(args[0], context)) && (await this.eval(args[1], context));
+            case 'or': return (await this.eval(args[0], context)) || (await this.eval(args[1], context));
+            case 'not': return !(await this.eval(args[0], context));
+
+            // Comparison & Arithmetic
+            case 'eq': return (await this.eval(args[0], context)) === (await this.eval(args[1], context));
+            case 'lt': return (await this.eval(args[0], context)) < (await this.eval(args[1], context));
+            case 'gt': return (await this.eval(args[0], context)) > (await this.eval(args[1], context));
+            case 'mod': return (await this.eval(args[0], context)) % (await this.eval(args[1], context));
+            case 'add': return (await this.eval(args[0], context)) + (await this.eval(args[1], context));
+            case 'subtract': return (await this.eval(args[0], context)) - (await this.eval(args[1], context));
+
             // Debugging
             case 'log': {
-                const resolvedArgs = args.map(arg => this.eval(arg, context));
+                const resolvedArgs = await Promise.all(args.map(arg => this.eval(arg, context)));
                 console.log('[Tailmix Interpreter Log]', ...resolvedArgs);
                 return;
             }
@@ -104,13 +143,10 @@ export class Interpreter {
         }
     }
 
-    /**
-     * @private
-     */
-    evalBranch(branch, context) {
+    async evalBranch(branch, context) {
         if (!branch) return;
         for (const expr of branch) {
-            this.eval(expr, context);
+            await this.eval(expr, context);
         }
     }
 }

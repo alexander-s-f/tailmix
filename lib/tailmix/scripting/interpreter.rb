@@ -55,6 +55,31 @@ module Tailmix
           value_to_add = args[1] ? eval(args[1]) : 1
           @context[key] = (@context[key] || 0) + value_to_add
 
+          # --- Collection Operations ---
+        when :array_push
+          key, value = args
+          current_array = @context[key] || []
+          # We create a new array to ensure immutability
+          @context[key] = current_array + [eval(value)]
+
+        when :array_remove_at
+          key, index = args
+          current_array = (@context[key] || []).dup
+          current_array.delete_at(eval(index))
+          @context[key] = current_array
+
+        when :array_update_at
+          key, index, value = args
+          current_array = (@context[key] || []).dup
+          current_array[eval(index)] = eval(value)
+          @context[key] = current_array
+
+          # --- Server Interaction ---
+        when :fetch
+          # This is a client-side only operation.
+          # We do nothing on the server to prevent blocking the render.
+          nil
+
           # Control Flow
         when :if
           condition, then_branch, else_branch = args
@@ -70,6 +95,13 @@ module Tailmix
         when :eq then eval(args[0]) == eval(args[1])
         when :lt then eval(args[0]) < eval(args[1])
         when :gt then eval(args[0]) > eval(args[1])
+        when :mod then eval(args[0]) % eval(args[1])
+        when :and then eval(args[0]) && eval(args[1])
+        when :or then eval(args[0]) || eval(args[1])
+        when :not then !eval(args[0])
+        when :add then eval(args[0]) + eval(args[1])
+        when :subtract then eval(args[0]) - eval(args[1])
+        when :now then Time.now.iso8601
 
         # Debugging
         when :log

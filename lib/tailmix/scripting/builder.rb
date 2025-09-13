@@ -47,6 +47,31 @@ module Tailmix
         self
       end
 
+      # --- Collection Manipulation ---
+
+      def push(key, value)
+        @expressions << [ :array_push, key, value ]
+        self
+      end
+
+      def remove_at(key, index)
+        @expressions << [ :array_remove_at, key, index ]
+        self
+      end
+
+      def update_at(key, index, value)
+        @expressions << [ :array_update_at, key, index, value ]
+        self
+      end
+
+      # --- Server Interaction ---
+
+      def fetch(url, then: nil, catch: nil, params: {})
+        options = { "then": binding.local_variable_get(:then), catch: binding.local_variable_get(:catch), params: params }.compact
+        @expressions << [ :fetch, url, options ]
+        self
+      end
+
       # --- Control Flow ---
 
       def if_(condition)
@@ -59,6 +84,11 @@ module Tailmix
       end
       alias_method :if?, :if_
 
+      def not_(expression)
+        [ :not, expression.to_a ]
+      end
+      alias_method :not?, :not_
+
       def state(key)
         ExpressionBuilder.new([ :state, key ])
       end
@@ -67,6 +97,10 @@ module Tailmix
         # This is a value-producing method, so it returns an S-expression
         # instead of adding one to the @expressions list.
         [ :concat, *args ]
+      end
+
+      def now
+        [ :now ]
       end
 
       # --- Debugging ---
