@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "response_builder"
+
 module Tailmix
   module Scripting
     # The Builder provides a high-level DSL for generating S-expressions.
@@ -66,9 +68,20 @@ module Tailmix
 
       # --- Server Interaction ---
 
-      def fetch(url, then: nil, catch: nil, params: {})
-        options = { "then": binding.local_variable_get(:then), catch: binding.local_variable_get(:catch), params: params }.compact
-        @expressions << [ :fetch, url, options ]
+      def fetch(url, method: :get, params: {}, service: nil, &block)
+        options = {
+          url: url,
+          method: method,
+          params: params,
+          service: service&.to_s
+        }.compact
+
+        callback_builder = self.class.new(@component_builder)
+        response_builder = Tailmix::Scripting::ResponseBuilder.new
+
+        callback_builder.instance_exec(response_builder, &block)
+
+        @expressions << [:fetch, options, callback_builder.expressions]
         self
       end
 
