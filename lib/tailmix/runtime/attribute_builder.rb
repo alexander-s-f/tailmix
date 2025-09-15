@@ -17,6 +17,7 @@ module Tailmix
         apply_attribute_bindings(attributes)
         apply_model_bindings(attributes)
         apply_event_bindings(attributes)
+        apply_each_binding(attributes)
 
         attributes
       end
@@ -96,6 +97,12 @@ module Tailmix
 
         attributes.data.add(tailmix_action: action_string)
         attributes.data.add(tailmix_action_with: with_map.to_json) unless with_map.empty?
+      end
+
+      def apply_each_binding(attributes)
+        return unless @element_def.each_config
+
+        attributes.data.add(tailmix_each: @element_def.each_config.to_json)
       end
     end
   end

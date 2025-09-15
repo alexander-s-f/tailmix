@@ -1,10 +1,7 @@
 # frozen_string_literal: true
 
-# require_relative "action_builder"
 require_relative "element_builder"
-# require_relative "reactor_builder"
-# require_relative "../payload_proxy"
-require_relative "../../scripting"
+# require_relative "../scripting"
 
 module Tailmix
   module Definition
