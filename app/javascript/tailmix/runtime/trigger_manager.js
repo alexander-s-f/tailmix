@@ -51,4 +51,45 @@ export class TriggerManager {
             });
         });
     }
+
+    _tmpExperimentBindAction(element) {
+        const eventBindings = {}; // e.g. { click: ['action1', 'action2'] }
+
+        for (const attr of element.attributes) {
+            const match = attr.name.match(/^data-tailmix-action-(.+)$/);
+            if (match) {
+                const eventName = match[1];
+                const actionNames = attr.value.split(' ');
+                eventBindings[eventName] = actionNames;
+            }
+        }
+
+        Object.entries(eventBindings).forEach(([eventName, actionNames]) => {
+            element.addEventListener(eventName, async (event) => {
+                for (const actionName of actionNames) {
+                    const actionDef = this.component.definition.actions[actionName];
+                    if (!actionDef?.expressions) {
+                        console.warn(`Tailmix: Action "${actionName}" not found.`);
+                        continue;
+                    }
+
+                    const conditionAttr = element.dataset[`tailmixAction-${actionName}-if`];
+                    if (conditionAttr) {
+                        const conditionExpr = JSON.parse(conditionAttr);
+                        const context = { event };
+                        const conditionResult = await this.interpreter.eval(conditionExpr, context);
+                        if (!conditionResult) {
+                            continue;
+                        }
+                    }
+
+                    const withAttr = element.dataset[`tailmixAction-${actionName}-with`];
+                    const payload = withAttr ? JSON.parse(withAttr) : {};
+
+                    const context = { event, payload };
+                    this.interpreter.run(actionDef.expressions, context);
+                }
+            });
+        });
+    }
 }

@@ -4,8 +4,13 @@ export const ValueOperations = {
         return interpreter.component.state[args[0]];
     },
 
+    // event: (interpreter, args, context) => {
+    //     return args[0].split('.').reduce((obj, key) => obj?.[key], context.event);
+    // },
+
     event: (interpreter, args, context) => {
-        return args[0].split('.').reduce((obj, key) => obj?.[key], context.event);
+        // args - ['target', 'value']
+        return args.reduce((obj, key) => obj?.[key], context.event);
     },
 
     now: () => {

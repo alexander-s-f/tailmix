@@ -23,4 +23,30 @@ export const CollectionsOperations = {
         const newArray = currentArray.map((item, i) => (i === resolvedIndex ? newValue : item));
         interpreter.component.update({ [key]: newArray });
     },
+
+    array_remove_where: async (interpreter, args, context) => {
+        const [key, query] = args;
+        const resolvedQuery = await interpreter.eval(query, context);
+        const currentArray = interpreter.component.state[key] || [];
+
+        const newArray = currentArray.filter(item => {
+            return !Object.entries(resolvedQuery).every(([qKey, qValue]) => item[qKey] === qValue);
+        });
+        interpreter.component.update({ [key]: newArray });
+    },
+
+    array_update_where: async (interpreter, args, context) => {
+        const [key, query, data] = args;
+        const resolvedQuery = await interpreter.eval(query, context);
+        const resolvedData = await interpreter.eval(data, context);
+        const currentArray = interpreter.component.state[key] || [];
+
+        const newArray = currentArray.map(item => {
+            if (Object.entries(resolvedQuery).every(([qKey, qValue]) => item[qKey] === qValue)) {
+                return { ...item, ...resolvedData };
+            }
+            return item;
+        });
+        interpreter.component.update({ [key]: newArray });
+    },
 };
