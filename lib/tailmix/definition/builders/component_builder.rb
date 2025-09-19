@@ -19,8 +19,8 @@ module Tailmix
           @component_name = component_name
         end
 
-        def state(name, default: nil, endpoint: nil, toggle: false)
-          @states[name.to_sym] = { default: default, endpoint: endpoint }.compact
+        def state(name, default: nil, endpoint: nil, toggle: false, serializer: nil)
+          @states[name.to_sym] = { default: default, endpoint: endpoint, serializer: serializer }.compact
           if toggle
             action_name = :"toggle_#{name}"
             action(action_name) { toggle(name) }

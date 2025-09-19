@@ -16,6 +16,8 @@ module Tailmix
           array_push: Operations::Collections.method(:array_push),
           array_remove_at: Operations::Collections.method(:array_remove_at),
           array_update_at: Operations::Collections.method(:array_update_at),
+          array_remove_where: Operations::Collections.method(:array_remove_where),
+          array_update_where: Operations::Collections.method(:array_update_where),
           # Logical
           and: Operations::Logical.method(:and),
           or: Operations::Logical.method(:or),

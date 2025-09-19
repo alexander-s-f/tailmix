@@ -42,6 +42,11 @@ module Tailmix
         end
         alias_method :not?, :not_
 
+        def not_eq(value)
+          eq(value).not_
+        end
+        alias_method :not_eq?, :not_eq
+
         def add(value)
           other_expr = value.is_a?(ExpressionBuilder) ? value.expression : value
           self.class.new([ :add, @expression, other_expr ])

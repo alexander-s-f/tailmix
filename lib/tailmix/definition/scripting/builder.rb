@@ -3,6 +3,8 @@
 require_relative "expression_builder"
 require_relative "response_builder"
 require_relative "state_proxy"
+require_relative "payload_proxy"
+require_relative "event_proxy"
 require_relative "helpers"
 
 module Tailmix
@@ -21,6 +23,14 @@ module Tailmix
         def call(action_name, payload = {})
           @expressions << [ :call, action_name, resolve_expressions(payload) ]
           self
+        end
+
+        def payload
+          PayloadProxy.new
+        end
+
+        def event
+          EventProxy.new
         end
 
         def expand_macro(name, *args)
@@ -82,6 +92,14 @@ module Tailmix
         def update_at(key, index, value)
           @expressions << [ :array_update_at, resolve_expressions(index), resolve_expressions(value) ]
           self
+        end
+
+        def remove_where(key, query)
+          @expressions << [ :array_remove_where, key, resolve_expressions(query) ]
+        end
+
+        def update_where(key, query, data)
+          @expressions << [ :array_update_where, key, resolve_expressions(query), resolve_expressions(data) ]
         end
 
         # --- Control Flow & Value Methods ---

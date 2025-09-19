@@ -15,9 +15,7 @@ module Tailmix
           alias_method :action, :action_proxy
 
           def inspect
-            # elements_list = @definition.elements.keys.join(", ")
-            #  "#<Tailmix::UI for #{component_name} elements=[#{elements_list}] dimensions=#{@dimensions.inspect}>"
-            "#<Tailmix::UI for #{component_name} state=#{get_state.inspect}>"
+            "#<Tailmix::UI for #{component_name} state=#{state.inspect}>"
           end
         end
       end

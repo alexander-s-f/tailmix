@@ -25,13 +25,6 @@ module Tailmix
         end
 
         # We can add more methods like `remove(item)`, `add(item)` etc. later.
-
-        # This is the entry point for the collection rendering DSL
-        def each(&block)
-          # TODO: Implement EachBuilder here to generate `[:each, ...]` S-expression.
-          # For now, we are focusing on the action DSL.
-        end
-
         # Allow this proxy to be used in conditions like `if(state(:counter).gt(5))`
         def method_missing(method_name, *args, &block)
           expression = ExpressionBuilder.new([:state, @state_key])

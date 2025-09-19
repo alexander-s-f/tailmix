@@ -21,7 +21,7 @@ module Tailmix
           @context.set_state(state_key, args.first)
         else
           # This is a getter: ui.state.open
-          @context.get_state(state_key)
+          @context.state(state_key)
         end
       end
 

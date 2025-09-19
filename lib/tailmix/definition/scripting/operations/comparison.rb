@@ -12,6 +12,10 @@ module Tailmix
             interpreter.eval(args[0]) == interpreter.eval(args[1])
           end
 
+          # def not_eq(interpreter, args)
+          #   interpreter.eval(args[0]) != interpreter.eval(args[1])
+          # end
+
           def lt(interpreter, args)
             interpreter.eval(args[0]) < interpreter.eval(args[1])
           end

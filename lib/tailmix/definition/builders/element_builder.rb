@@ -3,7 +3,6 @@
 require_relative "attribute_builder"
 require_relative "dimension_builder"
 require_relative "variant_builder"
-require_relative "../scripting/item_builder"
 require_relative "../scripting/helpers"
 
 module Tailmix
@@ -37,17 +36,12 @@ module Tailmix
           true
         end
 
-        # def on(event_name, action_name, with: nil, **options)
-        #   # `with` mapping: `{ payload_key => state_key }`
-        #   @event_bindings << { event: event_name, action: action_name, with: with, options: options }
-        # end
-
         def on(event_name, to:, with: {})
           @event_bindings << { event: event_name, action: to, with: with }
         end
 
-        def bind(attribute_name, to:)
-          @attribute_bindings[attribute_name.to_sym] = to.to_sym
+        def event
+          Scripting::EventProxy.new
         end
 
         def model(attribute_name, to:, on: :input, action: nil, debounce: nil)
@@ -75,26 +69,8 @@ module Tailmix
           }
         end
 
-        # Directive for rendering collections
-        def each(iterator_name, in:, template:, key:)
-          @each_config = {
-            iterator: iterator_name,
-            state_key: binding.local_variable_get(:in),
-            template_name: template,
-            key: key
-          }.freeze
-        end
-
-        def template(name, &block)
-          iterator_name = @each_config&.fetch(:iterator)
-          raise "An `each` directive must be defined before its `template`." unless iterator_name
-
-          template_element_builder = self.class.new(:"#{name}_root")
-          item_builder = Scripting::ItemBuilder.new(iterator_name)
-
-          template_element_builder.instance_exec(item_builder, &block)
-
-          @templates[name.to_sym] = template_element_builder.build_definition
+        def bind(attribute_name, to:)
+          @attribute_bindings[attribute_name.to_sym] = resolve_expressions(to)
         end
 
         def build_definition
