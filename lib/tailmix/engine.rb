@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "./arbre/context_helpers"
+
 module Tailmix
   class Engine < ::Rails::Engine
     config.before_initialize do
