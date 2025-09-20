@@ -46,6 +46,10 @@ export class Interpreter {
 
         const [op, ...args] = expression;
 
+        if (op === 'item') {
+            return args.reduce((obj, key) => obj?.[key], context.item);
+        }
+
         if (op === 'response') {
             if (!this._responseContext) {
                 console.warn("Tailmix: `:response` can only be used inside a `fetch` callback.");

@@ -9,7 +9,7 @@ module Tailmix
 
         def resolve_expressions(value)
           case value
-          when ExpressionBuilder, StateProxy
+          when ExpressionBuilder, StateVariableProxy
             value.to_a
           when Hash
             value.transform_values { |v| resolve_expressions(v) }

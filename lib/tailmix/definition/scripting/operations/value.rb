@@ -9,7 +9,15 @@ module Tailmix
           extend self
 
           def state(interpreter, args)
-            interpreter.context[args[0]]
+            key = args[0]
+            # If there is :item in the sub-interpreter, it has priority
+            return interpreter.context[:item] if key == :item
+            interpreter.context[key]
+          end
+
+          def item(interpreter, args)
+            # args is a path, for example [:name]
+            interpreter.context[:item].dig(*args)
           end
 
           def now(interpreter, args)

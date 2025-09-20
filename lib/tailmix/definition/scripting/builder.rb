@@ -2,9 +2,9 @@
 
 require_relative "expression_builder"
 require_relative "response_builder"
-require_relative "state_proxy"
 require_relative "payload_proxy"
 require_relative "event_proxy"
+require_relative "state_root_proxy"
 require_relative "helpers"
 
 module Tailmix
@@ -14,6 +14,7 @@ module Tailmix
         include Helpers
 
         attr_reader :expressions
+        attr_reader :component_builder
 
         def initialize(component_builder)
           @component_builder = component_builder
@@ -24,6 +25,11 @@ module Tailmix
           @expressions << [ :call, action_name, resolve_expressions(payload) ]
           self
         end
+
+        def state
+          StateRootProxy.new(self)
+        end
+        alias_method :s, :state
 
         def payload
           PayloadProxy.new
@@ -111,14 +117,6 @@ module Tailmix
           self
         end
         alias_method :if?, :if_
-
-        # def state(key)
-        #   ExpressionBuilder.new([ :state, key ])
-        # end
-        def state(key)
-          StateProxy.new(self, key)
-        end
-        alias_method :s, :state
 
         def not_(expression)
           [ :not, resolve_expressions(expression) ]

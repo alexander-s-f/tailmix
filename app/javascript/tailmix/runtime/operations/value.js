@@ -27,4 +27,12 @@ export const ValueOperations = {
         const resolvedArgs = await Promise.all(evalPromises);
         console.log('[Tailmix Interpreter Log]', ...resolvedArgs);
     },
+
+    item: (interpreter, args, context) => {
+        if (!context || context.item === undefined) {
+            console.warn("Tailmix: `item` can only be used inside an `each` block.");
+            return null;
+        }
+        return args.reduce((obj, key) => obj?.[key], context.item);
+    },
 };

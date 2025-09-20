@@ -13,6 +13,7 @@ module Tailmix
           toggle: Operations::State.method(:toggle),
           increment: Operations::State.method(:increment),
           # Collections
+          each: Operations::Each.method(:each),
           array_push: Operations::Collections.method(:array_push),
           array_remove_at: Operations::Collections.method(:array_remove_at),
           array_update_at: Operations::Collections.method(:array_update_at),
@@ -37,6 +38,7 @@ module Tailmix
           gt: Operations::Comparison.method(:gt),
           # Value
           state: Operations::Value.method(:state),
+          item: Operations::Value.method(:item),
           now: Operations::Value.method(:now),
           concat: Operations::Value.method(:concat),
           log: Operations::Value.method(:log),
