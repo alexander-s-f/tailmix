@@ -2,7 +2,6 @@
 require "json"
 require_relative "../registry"
 require_relative "state"
-require_relative "state_proxy"
 require_relative "action_proxy"
 require_relative "attribute_cache"
 require_relative "attribute_builder"
@@ -21,10 +20,6 @@ module Tailmix
         @state = State.new(definition.states, initial_state, cache: @cache)
 
         Registry.instance.register(component_instance.class)
-      end
-
-      def state_proxy
-        @state_proxy ||= StateProxy.new(self)
       end
 
       def action_proxy
@@ -51,13 +46,15 @@ module Tailmix
         end
       end
 
-      def attributes_for(element_name)
+      def attributes_for(element_name, with: {})
         cached = @cache.get(element_name)
         return cached if cached
 
         element_def = @definition.elements.fetch(element_name)
 
-        attributes = AttributeBuilder.new(element_def, @state, self).build
+        state_for_builder = with.empty? ? @state : @state.with(with)
+
+        attributes = AttributeBuilder.new(element_def, state_for_builder, self).build
         @cache.set(element_name, attributes)
         attributes
       end

@@ -7,6 +7,19 @@ module Tailmix
         @definition = state_definition
         @cache = cache
         @data = initialize_data(initial_values)
+
+        @definition.each_key do |state_key|
+          define_singleton_method(state_key) do
+            @data[state_key]
+          end
+
+          define_singleton_method("#{state_key}=") do |value|
+            return if @data[state_key] == value
+
+            @data[state_key] = value
+            @cache.clear!
+          end
+        end
       end
 
       def [](key)
@@ -15,14 +28,22 @@ module Tailmix
 
       def []=(key, value)
         return if @data[key.to_sym] == value
-
         @data[key.to_sym] = value
-        # Main reactive trigger: when the state changes – we clear the cache!
         @cache.clear!
       end
 
       def to_h
         @data
+      end
+
+      def with(scoped_data)
+        merged_data = @data.merge(scoped_data.to_h)
+
+        Struct.new(:data) do
+          def [](key)
+            data[key.to_sym]
+          end
+        end.new(merged_data)
       end
 
       private
