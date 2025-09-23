@@ -6,6 +6,8 @@ import { HttpOperations } from './operations/http';
 import { ArithmeticOperations } from './operations/arithmetic';
 import { ValueOperations } from './operations/value';
 import { ComparisonOperations } from './operations/comparison';
+import { DomOperations } from './operations/dom';
+import { HtmlOperations } from './operations/html';
 
 const OPERATIONS = {
     ...StateOperations,
@@ -16,6 +18,8 @@ const OPERATIONS = {
     ...ArithmeticOperations,
     ...ValueOperations,
     ...ComparisonOperations,
+    ...DomOperations,
+    ...HtmlOperations,
 };
 
 export class Interpreter {
