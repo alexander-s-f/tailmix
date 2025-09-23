@@ -43,6 +43,24 @@ module Tailmix
           concat: Operations::Value.method(:concat),
           log: Operations::Value.method(:log),
           response: Operations::Value.method(:response),
+          # Variables
+          let: Operations::Variables.method(:let),
+          var: Operations::Variables.method(:var),
+
+          # DOM (placeholders)
+          dom_append: Operations::Dom.method(:dom_append),
+          dom_prepend: Operations::Dom.method(:dom_prepend),
+          dom_add_class: Operations::Dom.method(:dom_add_class),
+          dom_remove_class: Operations::Dom.method(:dom_remove_class),
+          dom_toggle_class: Operations::Dom.method(:dom_toggle_class),
+          dom_replace: Operations::Dom.method(:dom_replace),
+          dom_remove: Operations::Dom.method(:dom_remove),
+          dom_set_attribute: Operations::Dom.method(:dom_set_attribute),
+          dom_set_value: Operations::Dom.method(:dom_set_value),
+
+          # HTML
+          html_build: Operations::Html.method(:html_build),
+          element_attrs: Operations::Html.method(:element_attrs),
         }.freeze
 
         attr_reader :context, :actions_definition, :server_context
@@ -59,6 +77,7 @@ module Tailmix
           @actions_definition = actions_definition
           @server_context = server_context
           @response_context = nil
+          @local_variables = {}
         end
 
         def eval(expression)

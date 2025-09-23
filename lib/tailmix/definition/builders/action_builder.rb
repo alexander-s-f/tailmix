@@ -11,7 +11,7 @@ module Tailmix
 
         def set(state_key, value)
           processed_value = if value.is_a?(PayloadValue)
-            { __type: 'payload_value', key: value.key }
+            { __type: "payload_value", key: value.key }
           else
             value
           end

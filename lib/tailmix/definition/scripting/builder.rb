@@ -5,6 +5,10 @@ require_relative "response_builder"
 require_relative "payload_proxy"
 require_relative "event_proxy"
 require_relative "state_root_proxy"
+require_relative "variable_proxy"
+require_relative "element_proxy"
+require_relative "dom_proxy"
+require_relative "html_builder_proxy"
 require_relative "helpers"
 
 module Tailmix
@@ -37,6 +41,18 @@ module Tailmix
 
         def event
           EventProxy.new
+        end
+
+        def el
+          @_element_proxy ||= ElementProxy.new
+        end
+
+        def dom
+          @_dom_proxy ||= DomProxy.new(self)
+        end
+
+        def html
+          @_html_proxy ||= HtmlBuilderProxy.new(self)
         end
 
         def expand_macro(name, *args)
@@ -125,6 +141,18 @@ module Tailmix
 
         def concat(*args)
           [ :concat, *args.map { |arg| resolve_expressions(arg) } ]
+        end
+
+        # --- Local Variables ---
+
+        # let :user_name, state.user.name
+        def let(variable_name, value_expression)
+          @expressions << [:let, variable_name.to_sym, resolve_expressions(value_expression)]
+          self
+        end
+
+        def var
+          @_variable_proxy ||= VariableProxy.new
         end
 
         def log(*args)
