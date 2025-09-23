@@ -6,8 +6,10 @@ import { HttpOperations } from './operations/http';
 import { ArithmeticOperations } from './operations/arithmetic';
 import { ValueOperations } from './operations/value';
 import { ComparisonOperations } from './operations/comparison';
-import { DomOperations } from './operations/dom';
+import { VariableOperations } from './operations/variables';
+import { ElementOperations } from './operations/element';
 import { HtmlOperations } from './operations/html';
+import { DomOperations } from './operations/dom';
 
 const OPERATIONS = {
     ...StateOperations,
@@ -18,8 +20,10 @@ const OPERATIONS = {
     ...ArithmeticOperations,
     ...ValueOperations,
     ...ComparisonOperations,
-    ...DomOperations,
+    ...VariableOperations,
+    ...ElementOperations,
     ...HtmlOperations,
+    ...DomOperations
 };
 
 export class Interpreter {
@@ -29,13 +33,15 @@ export class Interpreter {
     }
 
     async run(expressions, context = {}) {
+        const executionContext = { ...context, vars: {} };
+
         if (!Array.isArray(expressions)) {
             console.error("Tailmix Interpreter Error: `run` was called with a non-array value.", expressions);
             return;
         }
 
         for (const expr of expressions) {
-            await this.eval(expr, context);
+            await this.eval(expr, executionContext);
         }
     }
 

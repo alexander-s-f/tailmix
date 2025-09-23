@@ -141,4 +141,43 @@ export class Component {
             }
         }
     }
+
+    /**
+     * Builds and returns an object representing the scoped attributes for a given element.
+     *
+     * @param {string} elementName - The name of the element for which scoped attributes are being built.
+     * @param {Object} withData - Additional state data to temporarily augment the current state when calculating attributes.
+     * @return {Object} An object containing the final scoped attributes, including class and custom data attributes.
+     */
+    buildScopedAttributes(elementName, withData) {
+        const elementDef = this.definition.elements[elementName];
+        if (!elementDef) return {};
+
+        // Creating a temporary, "hybrid" state
+        const scopedState = { ...this._state, ...withData };
+
+        const finalAttributes = {};
+
+        // Apply base classes
+        const baseClasses = elementDef.attributes?.classes || [];
+        const classList = new Set(baseClasses);
+
+        // Apply dimensions
+        if (elementDef.dimensions) {
+            for (const dimName in elementDef.dimensions) {
+                const dimDef = elementDef.dimensions[dimName];
+                const stateValue = scopedState[dimName] !== undefined ? scopedState[dimName] : dimDef.default;
+                const variantDef = dimDef.variants?.[stateValue];
+                if (variantDef?.classes) {
+                    variantDef.classes.forEach(cls => classList.add(cls));
+                }
+            }
+        }
+
+        // Gathering final attributes
+        finalAttributes.class = [...classList].join(' ');
+        finalAttributes['data-tailmix-element'] = elementName;
+
+        return finalAttributes;
+    }
 }
