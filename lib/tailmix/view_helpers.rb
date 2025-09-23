@@ -1,4 +1,5 @@
 require "json"
+require_relative "compressor"
 
 module Tailmix
   ##
@@ -11,7 +12,8 @@ module Tailmix
       definitions = Tailmix::Registry.instance.definitions
       return if definitions.empty?
 
-      json_payload = definitions.to_json
+      compressed_payload = Compressor.call(definitions)
+      json_payload = compressed_payload.to_json
 
       tag.script(
         type: "application/json",

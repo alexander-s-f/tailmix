@@ -12,7 +12,7 @@ module Tailmix
             elements: elements.transform_values(&:to_h),
             plugins: plugins,
             reactions: reactions
-          }
+          }.compact.reject { |_k, v| v.respond_to?(:empty?) && v.empty? }
         end
       end
 
@@ -39,7 +39,7 @@ module Tailmix
             model_bindings: model_bindings,
             each_config: each_config,
             templates: templates.transform_values(&:to_h)
-          }
+          }.compact.reject { |_k, v| v.respond_to?(:empty?) && v.empty? }
         end
       end
 
@@ -55,7 +55,7 @@ module Tailmix
             data: data,
             aria: aria,
             attributes: attributes
-          }
+          }.compact.reject { |_k, v| v.respond_to?(:empty?) && v.empty? }
         end
       end
 

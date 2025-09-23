@@ -1,5 +1,5 @@
-import { Component } from './component';
-import { PluginManager } from './plugins';
+import {Component} from './component';
+import {PluginManager} from './plugins';
 
 /**
  * The Tailmix global object that manages the lifecycle of components and plugins.
@@ -10,6 +10,7 @@ const Tailmix = {
     _definitions: {},
     _pluginManager: new PluginManager(),
     _observer: null,
+    _dictionary: [],
 
     /**
      * Starts the Tailmix application by loading component definitions and initializing components.
@@ -48,7 +49,6 @@ const Tailmix = {
             }
         });
 
-        // NEW: Re-introduced logic for binding external triggers.
         const triggerElements = rootElement.querySelectorAll('[data-tailmix-trigger-for]');
         triggerElements.forEach(element => {
             // Avoid re-binding if the element has already been processed (e.g., inside a component).
@@ -75,11 +75,34 @@ const Tailmix = {
         const definitionsTag = document.querySelector('script[data-tailmix-definitions]');
         if (definitionsTag) {
             try {
-                this._definitions = JSON.parse(definitionsTag.textContent);
+                const payload = JSON.parse(definitionsTag.textContent);
+                this._dictionary = payload.dictionary || [];
+                const components = payload.components || {};
+
+                Object.values(components).forEach(compDef => this.decompress(compDef));
+
+                this._definitions = components;
             } catch (e) {
                 console.error("Tailmix: Failed to parse component definitions.", e);
             }
         }
+    },
+
+    decompress(node) {
+        if (typeof node !== 'object' || node === null) return;
+
+        if (Array.isArray(node)) {
+            node.forEach(item => this.decompress(item));
+            return;
+        }
+
+        Object.keys(node).forEach(key => {
+            if (key === 'classes' && Array.isArray(node[key])) {
+                node[key] = node[key].map(id => this._dictionary[id]) //.join(' ');
+            } else {
+                this.decompress(node[key]);
+            }
+        });
     },
 
     /**
@@ -115,7 +138,7 @@ const Tailmix = {
             }
         });
 
-        this._observer.observe(document.body, { childList: true, subtree: true });
+        this._observer.observe(document.body, {childList: true, subtree: true});
     }
 };
 
