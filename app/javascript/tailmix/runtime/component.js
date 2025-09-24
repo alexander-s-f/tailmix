@@ -47,6 +47,7 @@ export class Component {
         this.updater.run(this._state, {});
         pluginManager.connect(this);
 
+        this.initializeStateSyncing();
         console.log(`Tailmix component "${this.definition.name || 'Unnamed'}" initialized with new engine.`, this);
     }
 
@@ -67,7 +68,7 @@ export class Component {
         const changedKeys = new Set();
 
         for (const key in newState) {
-            if (this._state[key] !== newState[key]) {
+            if (JSON.stringify(this._state[key]) !== JSON.stringify(newState[key])) {
                 changedKeys.add(key);
             }
         }
@@ -75,6 +76,22 @@ export class Component {
         if (changedKeys.size === 0) return;
 
         Object.assign(this._state, newState);
+
+        for (const key of changedKeys) {
+            const config = this.definition.states[key];
+            if (config.persist) {
+                const storageKey = `${this.definition.name}:${key}`;
+                localStorage.setItem(storageKey, JSON.stringify(this._state[key]));
+            }
+            if (config.sync === 'hash') {
+                if (this._state[key]) {
+                    window.location.hash = this._state[key];
+                } else {
+                    history.pushState("", document.title, window.location.pathname + window.location.search);
+                }
+            }
+        }
+
         this.element.dataset.tailmixState = JSON.stringify(this._state);
 
         this.updater.run(this._state, oldState);
@@ -100,8 +117,29 @@ export class Component {
         const stateSchema = this.definition.states || {};
 
         for (const key in stateSchema) {
-            if (initialState[key] === undefined && stateSchema[key].default !== undefined) {
-                initialState[key] = stateSchema[key].default;
+            const config = stateSchema[key];
+            let value = initialState[key];
+
+            if (config.persist) {
+                const storageKey = `${this.definition.name}:${key}`;
+                const persistedValue = localStorage.getItem(storageKey);
+
+                if (persistedValue !== null) {
+                    value = JSON.parse(persistedValue);
+                }
+            }
+
+            if (config.sync === 'hash') {
+                const hashValue = window.location.hash.substring(1);
+                if (hashValue) {
+                    value = hashValue;
+                }
+            }
+
+            if (value !== undefined) {
+                initialState[key] = value;
+            } else if (config.default !== undefined) {
+                initialState[key] = config.default;
             }
         }
         return initialState;
@@ -179,5 +217,23 @@ export class Component {
         finalAttributes['data-tailmix-element'] = elementName;
 
         return finalAttributes;
+    }
+
+    /**
+     * Initializes listeners for external state changes (e.g., URL hash).
+     */
+    initializeStateSyncing() {
+        window.addEventListener('hashchange', () => {
+            for (const key in this.definition.states) {
+                const config = this.definition.states[key];
+                if (config.sync === 'hash') {
+                    const hashValue = window.location.hash.substring(1);
+                    // Updating the component's state if it differs from the current hash
+                    if (this.state[key] !== hashValue) {
+                        this.update({ [key]: hashValue || config.default });
+                    }
+                }
+            }
+        });
     }
 }
