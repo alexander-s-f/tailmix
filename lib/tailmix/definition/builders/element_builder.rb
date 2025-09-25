@@ -40,6 +40,10 @@ module Tailmix
           @event_bindings << { event: event_name, action: to, with: with }
         end
 
+        def param
+          @_param_proxy ||= Scripting::ParamProxy.new
+        end
+
         def event
           Scripting::EventProxy.new
         end
@@ -53,8 +57,8 @@ module Tailmix
           }.compact
         end
 
-        def dimension(name, &block)
-          builder = DimensionBuilder.new
+        def dimension(name, on: nil, &block)
+          builder = DimensionBuilder.new(on: on)
           builder.instance_eval(&block)
           @dimensions[name.to_sym] = builder.build_dimension
         end

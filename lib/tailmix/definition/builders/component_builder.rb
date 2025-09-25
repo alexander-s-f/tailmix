@@ -40,7 +40,9 @@ module Tailmix
 
         def action(name, &block)
           builder = Scripting::Builder.new(self)
-          builder.instance_eval(&block)
+          payload_proxy = Scripting::PayloadProxy.new
+          builder.instance_exec(payload_proxy, &block)
+
           @actions[name.to_sym] = builder.expressions
         end
 

@@ -90,13 +90,34 @@ module Tailmix
 
       # Applies event handlers (`on :click, :save`).
       def apply_event_bindings(attributes)
-        return unless @element_def.event_bindings&.any?
+        return if @element_def.event_bindings.blank?
+
+        # We are assembling the payload, separating static and dynamic (param) values.
+        static_with = {}
+        dynamic_params = {} # Для param
+
+        @element_def.event_bindings.each do |binding|
+          (binding[:with] || {}).each do |key, value|
+            if value.is_a?(Array) && value.first == :param
+              # value -> [:param, :name]
+              param_key = value.second
+              dynamic_params[key] = param_key
+            else
+              static_with[key] = value
+            end
+          end
+        end
 
         action_string = @element_def.event_bindings.map { |b| "#{b[:event]}->#{b[:action]}" }.join(" ")
-        with_map = @element_def.event_bindings.map { |b| b[:with] }.compact.reduce({}, :merge)
-
         attributes.data.add(tailmix_action: action_string)
-        attributes.data.add(tailmix_action_with: with_map.to_json) unless with_map.empty?
+
+        attributes.data.add(tailmix_action_with: static_with.to_json) if static_with.present?
+
+        # And for dynamic data, we generate special data-tailmix-param-* attributes
+        dynamic_params.each do |payload_key, param_key|
+          # For example, data-tailmix-param-name="name"
+          attributes.data.add("tailmix-param-#{payload_key}": param_key)
+        end
       end
 
       def apply_each_binding(attributes)
