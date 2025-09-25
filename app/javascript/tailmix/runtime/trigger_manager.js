@@ -32,6 +32,15 @@ export class TriggerManager {
         const actionString = element.dataset.tailmixAction;
         if (!actionString) return;
 
+        let staticPayload = {};
+        if (element.dataset.tailmixActionWith) {
+            try {
+                staticPayload = JSON.parse(element.dataset.tailmixActionWith);
+            } catch (e) {
+                console.error("Tailmix: Invalid JSON in data-tailmix-action-with", element);
+            }
+        }
+
         actionString.split(' ').forEach(actionPair => {
             const [eventName, actionName] = actionPair.split('->');
 
@@ -47,7 +56,8 @@ export class TriggerManager {
             }
 
             element.addEventListener(eventName, (event) => {
-                this.interpreter.run(actionDef.expressions, event);
+                const context = { event, payload: staticPayload };
+                this.interpreter.run(actionDef.expressions, context);
             });
         });
     }
