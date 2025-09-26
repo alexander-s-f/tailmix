@@ -3,14 +3,19 @@
 module Tailmix
   module Runtime
     class AttributeBuilder
-      def initialize(element_def, state, context)
+      def initialize(element_def, state, context, with_data)
         @element_def = element_def
         @state = state
         @context = context
+        @with_data = with_data
       end
 
       def build
         attributes = create_base_attributes
+
+        @with_data.each do |key, value|
+          attributes.data.add(key => value)
+        end
 
         apply_dimensions(attributes)
         apply_compound_variants(attributes)
@@ -33,8 +38,28 @@ module Tailmix
 
       # Applies classes and data/aria attributes from `dimension`.
       def apply_dimensions(attributes)
+        element_data = @state # By default, use the full state
+
+        # If `key_config` is set for the element and a key is passed in `with_data`...
+        if @element_def.key_config && (key_value = @with_data[@element_def.key_config[:param]])
+          collection_name = @element_def.key_config[:collection]
+          collection = @context.state[collection_name]
+
+          # ...we find the required element in the collection...
+          found_item = collection.find { |item| item[@element_def.key_config[:param]] == key_value }
+
+          # ...and use it as a local scope!
+          element_data = @state.with(found_item) if found_item
+
+          # Automatically add data-key
+          attributes.data.add(key: key_value)
+        end
+
         @element_def.dimensions.each do |name, dim_def|
-          value = @state[name] || dim_def[:default]
+          # value = @state[name] || dim_def[:default]
+          # `element_data` - is either the full state, or the scope of a single `todo`
+          state_key_to_check = dim_def[:on] || name
+          value = element_data[state_key_to_check] || dim_def[:default]
           next if value.nil?
 
           variant_def = dim_def.fetch(:variants, {}).fetch(value, nil)
@@ -92,30 +117,25 @@ module Tailmix
       def apply_event_bindings(attributes)
         return if @element_def.event_bindings.blank?
 
-        # We are assembling the payload, separating static and dynamic (param) values.
         static_with = {}
-        dynamic_params = {} # Для param
+        dynamic_params = {}
 
-        @element_def.event_bindings.each do |binding|
-          (binding[:with] || {}).each do |key, value|
-            if value.is_a?(Array) && value.first == :param
-              # value -> [:param, :name]
-              param_key = value.second
-              dynamic_params[key] = param_key
-            else
-              static_with[key] = value
-            end
+        # Breaking down `with:` from the DSL
+        @element_def.event_bindings.flat_map { |b| b[:with].to_a }.each do |key, value|
+          if value.is_a?(Array) && value.first == :param
+            param_key = value.second
+            dynamic_params[key] = param_key
+          else
+            static_with[key] = value
           end
         end
 
         action_string = @element_def.event_bindings.map { |b| "#{b[:event]}->#{b[:action]}" }.join(" ")
         attributes.data.add(tailmix_action: action_string)
-
         attributes.data.add(tailmix_action_with: static_with.to_json) if static_with.present?
 
         # And for dynamic data, we generate special data-tailmix-param-* attributes
         dynamic_params.each do |payload_key, param_key|
-          # For example, data-tailmix-param-name="name"
           attributes.data.add("tailmix-param-#{payload_key}": param_key)
         end
       end

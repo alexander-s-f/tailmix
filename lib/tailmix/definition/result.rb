@@ -16,7 +16,7 @@ module Tailmix
         end
       end
 
-      Element = Struct.new(:name, :attributes, :dimensions, :compound_variants, :event_bindings, :attribute_bindings, :model_bindings, :default_attributes, :each_config, :templates, keyword_init: true) do
+      Element = Struct.new(:name, :attributes, :dimensions, :compound_variants, :event_bindings, :attribute_bindings, :model_bindings, :default_attributes, :each_config, :templates, :key_config, keyword_init: true) do
         def to_h
           {
             name: name,
@@ -38,7 +38,8 @@ module Tailmix
             attribute_bindings: attribute_bindings,
             model_bindings: model_bindings,
             each_config: each_config,
-            templates: templates.transform_values(&:to_h)
+            templates: templates.transform_values(&:to_h),
+            key_config: key_config,
           }.compact.reject { |_k, v| v.respond_to?(:empty?) && v.empty? }
         end
       end

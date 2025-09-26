@@ -19,13 +19,14 @@ module Tailmix
           @component_name = component_name
         end
 
-        def state(name, default: nil, endpoint: nil, toggle: false, serializer: nil, persist: false, sync: nil)
+        def state(name, default: nil, endpoint: nil, toggle: false, serializer: nil, persist: false, sync: nil, collection: false)
           @states[name.to_sym] = {
             default: default,
+            collection: collection,
             endpoint: endpoint,
             serializer: serializer,
             persist: persist,
-            sync: sync
+            sync: sync,
           }.compact.reject { |_k, v| v == false }
 
           if toggle
@@ -58,7 +59,7 @@ module Tailmix
         end
 
         def element(name, classes = "", &block)
-          builder = ElementBuilder.new(name)
+          builder = ElementBuilder.new(name, self)
           builder.attributes.classes(classes.split)
           builder.instance_eval(&block) if block
           @elements[name.to_sym] = builder

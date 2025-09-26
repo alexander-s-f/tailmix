@@ -3,6 +3,7 @@
 require_relative "attribute_builder"
 require_relative "dimension_builder"
 require_relative "variant_builder"
+require_relative "constructor_builder"
 require_relative "../scripting/helpers"
 
 module Tailmix
@@ -10,9 +11,11 @@ module Tailmix
     module Builders
       class ElementBuilder
         include Scripting::Helpers
+        attr_reader :component_builder
 
-        def initialize(name)
+        def initialize(name, component_builder)
           @name = name
+          @component_builder = component_builder
           @default_attributes = {}
           @dimensions = {}
           @compound_variants = []
@@ -21,6 +24,20 @@ module Tailmix
           @model_bindings = {}
           @each_config = nil
           @templates = {}
+          @key_config = nil
+        end
+
+        def constructor(&block)
+          constructor_builder = ConstructorBuilder.new(self)
+
+          # Creating a proxy for the argument |param|
+          param_proxy = Scripting::ParamProxy.new
+
+          # Executing the block, passing `param_proxy` to it.
+          # Code inside the block (e.g., `on :click...`) will call methods
+          # on `constructor_builder`, which delegate back to `self` (ElementBuilder),
+          # thus configuring our element.
+          constructor_builder.instance_exec(param_proxy, &block)
         end
 
         def attributes
@@ -36,8 +53,21 @@ module Tailmix
           true
         end
 
-        def on(event_name, to:, with: {})
-          @event_bindings << { event: event_name, action: to, with: with }
+        def on(event_name, to: nil, with: {}, &block)
+          action_name = to
+
+          if block_given?
+            raise "Cannot provide both `to:` and a block to `on`" if to
+
+            action_name = :"#{@name}_#{event_name}_handler"
+
+            # 2. We use a reference to ComponentBuilder to create an action "on the fly"
+            @component_builder.action(action_name, &block)
+          end
+
+          return unless action_name # We do nothing if there is neither `to:` nor a block.
+
+          @event_bindings << { event: event_name, action: action_name, with: with }
         end
 
         def param
@@ -78,7 +108,6 @@ module Tailmix
         end
 
         def build_definition
-          # FIX: Resolve expressions in event bindings before building the result.
           resolved_event_bindings = @event_bindings.map do |binding|
             binding.merge(with: resolve_expressions(binding[:with]))
           end
@@ -93,7 +122,8 @@ module Tailmix
             attribute_bindings: @attribute_bindings.freeze,
             model_bindings: @model_bindings.freeze,
             each_config: @each_config,
-            templates: @templates.freeze
+            templates: @templates.freeze,
+            key_config: @key_config
           )
         end
       end

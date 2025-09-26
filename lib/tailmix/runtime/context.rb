@@ -47,14 +47,13 @@ module Tailmix
       end
 
       def attributes_for(element_name, with: {})
+        # Skip cache for calls with `with`
+        return AttributeBuilder.new(@definition.elements.fetch(element_name), @state, self, with).build if with.present?
+
         cached = @cache.get(element_name)
         return cached if cached
 
-        element_def = @definition.elements.fetch(element_name)
-
-        state_for_builder = with.empty? ? @state : @state.with(with)
-
-        attributes = AttributeBuilder.new(element_def, state_for_builder, self).build
+        attributes = AttributeBuilder.new(@definition.elements.fetch(element_name), @state, self, {}).build
         @cache.set(element_name, attributes)
         attributes
       end

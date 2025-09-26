@@ -41,6 +41,14 @@ export class TriggerManager {
             }
         }
 
+        const dynamicParamsConfig = {};
+        for (const key in element.dataset) {
+            if (key.startsWith('tailmixParam')) {
+                const payloadKey = key.charAt('tailmixParam'.length).toLowerCase() + key.slice('tailmixParam'.length + 1);
+                dynamicParamsConfig[payloadKey] = element.dataset[key];
+            }
+        }
+
         actionString.split(' ').forEach(actionPair => {
             const [eventName, actionName] = actionPair.split('->');
 
@@ -56,7 +64,17 @@ export class TriggerManager {
             }
 
             element.addEventListener(eventName, (event) => {
-                const context = { event, payload: staticPayload };
+                // 3. Collect the final payload AT THE MOMENT OF THE EVENT
+                let finalPayload = { ...staticPayload };
+
+                for (const payloadKey in dynamicParamsConfig) {
+                    const dataAttributeName = dynamicParamsConfig[payloadKey];
+                    if (element.dataset[dataAttributeName] !== undefined) {
+                        finalPayload[payloadKey] = element.dataset[dataAttributeName];
+                    }
+                }
+
+                const context = { event, payload: finalPayload };
                 this.interpreter.run(actionDef.expressions, context);
             });
         });
