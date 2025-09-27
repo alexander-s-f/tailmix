@@ -63,31 +63,35 @@ module Tailmix
         end
 
         def state
-          Builder.new(@component_builder, main_builder: @main_builder).tap { |b| b.cursor = [:state] }
+          Builder.new(@component_builder, main_builder: @main_builder).tap { |b| b.cursor = [ :state ] }
         end
 
         def event
-          Builder.new(@component_builder, main_builder: @main_builder).tap { |b| b.cursor = [:event] }
+          Builder.new(@component_builder, main_builder: @main_builder).tap { |b| b.cursor = [ :event ] }
         end
 
         def payload
-          Builder.new(@component_builder, main_builder: @main_builder).tap { |b| b.cursor = [:payload] }
+          Builder.new(@component_builder, main_builder: @main_builder).tap { |b| b.cursor = [ :payload ] }
         end
 
         def var
-          Builder.new(@component_builder, main_builder: @main_builder).tap { |b| b.cursor = [:var] }
+          Builder.new(@component_builder, main_builder: @main_builder).tap { |b| b.cursor = [ :var ] }
+        end
+
+        def item
+          Builder.new(@component_builder, main_builder: @main_builder).tap { |b| b.cursor = [ :item ] }
         end
 
         def this
-          Builder.new(@component_builder, main_builder: @main_builder).tap { |b| b.cursor = [:this] }
+          Builder.new(@component_builder, main_builder: @main_builder).tap { |b| b.cursor = [ :this ] }
         end
 
         def el
-          Builder.new(@component_builder, main_builder: @main_builder).tap { |b| b.cursor = [:el] }
+          Builder.new(@component_builder, main_builder: @main_builder).tap { |b| b.cursor = [ :el ] }
         end
 
         def dom
-          Builder.new(@component_builder, main_builder: @main_builder).tap { |b| b.cursor = [:dom] }
+          Builder.new(@component_builder, main_builder: @main_builder).tap { |b| b.cursor = [ :dom ] }
         end
 
         def html
@@ -118,24 +122,30 @@ module Tailmix
         def method_missing(name, *args, &block)
           raise "Cannot call .#{name} here. Start a chain with state, dom, el, etc." if @cursor.nil?
 
-          # Cursor-driven logic for various expression types
-          case @cursor.first
-          when :state, :event, :payload, :var, :param, :this
-            @cursor << name.to_sym
-          when :el
-            @cursor = [ :element_attrs, name, {} ] # el.button
-          when :element_attrs
-            handle_element_attrs_chain(name, *args)
-          when :dom
-            handle_dom_chain(name, *args)
-          when :dom_select
-            # dom.select(...).add_class(...) -> this is already a command
-            command = "dom_#{name}".to_sym
-            @expressions << [ command, @cursor, *resolve_expressions(args) ]
-            @cursor = nil # Resetting the cursor as the command has been executed
+          operators = %i[eq gt lt not not_eq and or]
+          method_name = name.to_s.chomp("?").to_sym
+
+          # First, we check if the method is an operator
+          if operators.include?(method_name)
+            @cursor = [ method_name, @cursor, *resolve_expressions(args) ]
           else
-            # Otherwise, this is a modifier method such as gt, lt, eq, and, or, not_
-            @cursor = [ name, @cursor, *resolve_expressions(args) ]
+            # If not, then this is an access to the property
+            case @cursor.first
+            when :state, :event, :payload, :var, :param, :this, :item
+              @cursor << name.to_sym
+            when :el
+              @cursor = [ :element_attrs, name, {} ]
+            when :element_attrs
+              handle_element_attrs_chain(name, *args)
+            when :dom
+              handle_dom_chain(name, *args)
+            when :dom_select
+              command = "dom_#{name}".to_sym
+              @main_builder.expressions << [ command, @cursor, *resolve_expressions(args) ]
+              @cursor = nil
+            else
+              raise "Unknown method call `#{name}` on expression."
+            end
           end
 
           self

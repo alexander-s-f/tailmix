@@ -63,8 +63,10 @@ module Tailmix
         @element_def.dimensions.each do |name, dim_def|
           value = if dim_def[:on].is_a?(Array) # This is an S-expression
             # Calculating S-expression, passing necessary contexts
-            interpreter = Definition::Scripting::Interpreter.new(scoped_state.to_h, {}, server_context)
+            context_hash = scoped_state.to_h
+            interpreter = Definition::Scripting::Interpreter.new(context_hash.merge(item: context_hash), {}, server_context)
             interpreter.eval(dim_def[:on])
+
           else # This is a common state key
             state_key_to_check = dim_def[:on] || name
             scoped_state[state_key_to_check] || dim_def[:default]
@@ -90,7 +92,8 @@ module Tailmix
           value = if state_key_or_proc.is_a?(Proc)
             state_key_or_proc.call(scoped_state)
           elsif state_key_or_proc.is_a?(Array) # S-expression
-            interpreter = Definition::Scripting::Interpreter.new(scoped_state.to_h, {}, { this: scoped_state.to_h }) # Упрощенный `this`
+            context_hash = scoped_state.to_h
+            interpreter = Definition::Scripting::Interpreter.new(context_hash.merge(item: context_hash), {}, { this: context_hash })
             interpreter.eval(state_key_or_proc)
           else
             scoped_state[state_key_or_proc]

@@ -1,43 +1,82 @@
+
+/**
+ * Finds data associated with the DOM element via data-key attributes.
+* Duplicates logic from this.js
+ */
+const resolveKeyContextForItem = (element, component) => {
+    if (!element?.dataset.tailmixElement) return null;
+
+    const elementName = element.dataset.tailmixElement;
+    const elementDef = component.definition.elements[elementName];
+    if (!elementDef?.key_config) return null;
+
+    const keyConfig = elementDef.key_config;
+    const keyName = keyConfig.name;
+    const keyValue = element.dataset[`tailmixKey${keyName.charAt(0).toUpperCase() + keyName.slice(1)}`];
+
+    if (keyValue === undefined) return null;
+
+    const collection = component.state[keyConfig.collection];
+    if (!Array.isArray(collection)) return null;
+
+    return collection.find(i => String(i[keyName]) === String(keyValue));
+};
+
+
 export class Updater {
     constructor(component) {
         this.component = component;
         this.definition = component.definition;
     }
 
-    run(newState, oldState) {
-        for (const elementName in this.definition.elements) {
-            const elementNode = this.component.elements[elementName];
-            const elementDef = this.definition.elements[elementName];
+    async run(newState, oldState) {
+        const elementsInDom = this.component.element.querySelectorAll('[data-tailmix-element]');
 
-            if (!elementNode || !elementDef) continue;
+        const updatePromises = [];
+        elementsInDom.forEach(elementNode => {
+            updatePromises.push(this.updateElementWithScope(elementNode, newState));
+        });
 
-            this.updateElement(elementNode, elementDef, newState, oldState);
+        if (this.component.element.dataset.tailmixElement) {
+            const elDef = this.definition.elements[this.component.element.dataset.tailmixElement];
+            if (elDef && !elDef.key_config) { // Update the root only if it is not "key"
+                updatePromises.push(this.updateElement(this.component.element, elDef, newState));
+            }
         }
+
+        await Promise.all(updatePromises);
     }
 
-    updateElement(elementNode, elementDef, newState, oldState) {
-        this.updateClasses(elementNode, elementDef, newState);
-        this.updateAttributes(elementNode, elementDef, newState);
-        this.updateContent(elementNode, elementDef, newState);
+    async updateElementWithScope(elementNode, newState) {
+        const elementName = elementNode.dataset.tailmixElement;
+        const elementDef = this.definition.elements[elementName];
+        if (!elementDef) return;
+
+        const itemContext = resolveKeyContextForItem(elementNode, this.component);
+        const scopedState = { ...newState, ...itemContext };
+
+        await this.updateElement(elementNode, elementDef, scopedState);
     }
 
-    updateClasses(elementNode, elementDef, newState) {
-        // This logic remains unchanged
-        const targetClasses = this.calculateTargetClasses(elementDef, newState);
-        const currentClasses = new Set(elementNode.classList);
+    async updateElement(elementNode, elementDef, scopedState) {
+        await this.updateClasses(elementNode, elementDef, scopedState);
+        this.updateAttributes(elementNode, elementDef, scopedState);
+        this.updateContent(elementNode, elementDef, scopedState);
+    }
+
+    async updateClasses(elementNode, elementDef, scopedState) {
+        const targetClasses = await this.calculateTargetClasses(elementDef, scopedState);
 
         targetClasses.forEach(cls => {
-            if (!currentClasses.has(cls)) {
+            if (!elementNode.classList.contains(cls)) {
                 elementNode.classList.add(cls);
             }
         });
 
-        currentClasses.forEach(cls => {
-            if (!targetClasses.has(cls)) {
-                const isBaseClass = !this.isVariantClass(elementDef, cls);
-                if (!targetClasses.has(cls) && !isBaseClass) {
-                    elementNode.classList.remove(cls);
-                }
+        elementNode.classList.forEach(cls => {
+            const isBaseClass = elementDef.attributes?.classes?.includes(cls);
+            if (!targetClasses.has(cls) && !isBaseClass) {
+                elementNode.classList.remove(cls);
             }
         });
     }
@@ -84,29 +123,55 @@ export class Updater {
         }
     }
 
-    calculateTargetClasses(elementDef, state) {
-        // This logic remains unchanged
-        const classes = new Set();
+    async calculateTargetClasses(elementDef, state) {
+        const classes = new Set(elementDef.attributes?.classes || []);
+
         if (elementDef.dimensions) {
             for (const dimName in elementDef.dimensions) {
                 const dimDef = elementDef.dimensions[dimName];
-                const stateValue = state[dimName] !== undefined ? state[dimName] : dimDef.default;
-                const variantDef = dimDef.variants?.[stateValue];
+                const interpreter = this.component.interpreter;
+                let value;
+
+                if (Array.isArray(dimDef.on)) {
+                    const evaluationContext = {
+                        ...this.buildKeyContextForEval(state),
+                        item: state
+                    };
+                    value = await interpreter.eval(dimDef.on, evaluationContext);
+                } else {
+                    const stateKey = dimDef.on || dimName;
+                    value = state[stateKey] !== undefined ? state[stateKey] : dimDef.default;
+                }
+
+                const variantDef = dimDef.variants?.[value];
                 if (variantDef?.classes) {
                     variantDef.classes.forEach(cls => classes.add(cls));
                 }
             }
         }
-        if (elementDef.compound_variants) {
-            elementDef.compound_variants.forEach(cv => {
-                const isMatch = Object.entries(cv.on).every(([key, value]) => state[key] === value);
-                if (isMatch && cv.modifications.classes) {
-                    cv.modifications.classes.forEach(cls => classes.add(cls));
-                }
-            });
-        }
         return classes;
     }
+
+    buildKeyContextForEval(itemState) {
+        // TODO: This logic should be smarter, but for our case with the key :tab, this is enough
+        if (itemState.tab) {
+            return { this: { key: { tab: itemState } } };
+        }
+        return {};
+    }
+
+    // calculateTargetClasses(elementDef, state) {
+    //     ...
+    //     if (elementDef.compound_variants) {
+    //         elementDef.compound_variants.forEach(cv => {
+    //             const isMatch = Object.entries(cv.on).every(([key, value]) => state[key] === value);
+    //             if (isMatch && cv.modifications.classes) {
+    //                 cv.modifications.classes.forEach(cls => classes.add(cls));
+    //             }
+    //         });
+    //     }
+    //     return classes;
+    // }
 
     isVariantClass(elementDef, className) {
         // This logic remains unchanged

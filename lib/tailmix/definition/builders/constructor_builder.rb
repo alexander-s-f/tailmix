@@ -17,6 +17,10 @@ module Tailmix
           Scripting::Builder.new(@element_builder.component_builder).tap { |b| b.cursor = [ :this ] }
         end
 
+        def item
+          Scripting::Builder.new(@element_builder.component_builder).tap { |b| b.cursor = [ :item ] }
+        end
+
         def key(name, to:, on:)
           # `to` - state.tabs -> [:state, :tabs]
           collection_name = to.to_a[1]

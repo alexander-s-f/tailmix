@@ -9,6 +9,7 @@ import { ComparisonOperations } from './operations/comparison';
 import { VariableOperations } from './operations/variables';
 import { ElementOperations } from './operations/element';
 import { HtmlOperations } from './operations/html';
+import { ThisOperations } from './operations/this';
 import { DomOperations } from './operations/dom';
 
 const OPERATIONS = {
@@ -22,6 +23,7 @@ const OPERATIONS = {
     ...ComparisonOperations,
     ...VariableOperations,
     ...ElementOperations,
+    ...ThisOperations,
     ...HtmlOperations,
     ...DomOperations
 };
