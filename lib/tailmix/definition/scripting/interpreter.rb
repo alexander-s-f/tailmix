@@ -61,6 +61,7 @@ module Tailmix
           # HTML
           html_build: Operations::Html.method(:html_build),
           element_attrs: Operations::Html.method(:element_attrs),
+          this: Operations::This.method(:this)
         }.freeze
 
         attr_reader :context, :actions_definition, :server_context

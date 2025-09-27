@@ -9,7 +9,8 @@ module Tailmix
 
         def resolve_expressions(value)
           case value
-          when ExpressionBuilder, StateVariableProxy
+          when Builder
+            # If the Builder itself was passed to us, we extract its built expression.
             value.to_a
           when Hash
             value.transform_values { |v| resolve_expressions(v) }

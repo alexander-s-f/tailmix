@@ -29,15 +29,12 @@ module Tailmix
 
         def constructor(&block)
           constructor_builder = ConstructorBuilder.new(self)
+          param_builder = Scripting::Builder.new(@component_builder).tap { |b| b.cursor = [ :param ] }
+          constructor_builder.instance_exec(param_builder, &block)
+        end
 
-          # Creating a proxy for the argument |param|
-          param_proxy = Scripting::ParamProxy.new
-
-          # Executing the block, passing `param_proxy` to it.
-          # Code inside the block (e.g., `on :click...`) will call methods
-          # on `constructor_builder`, which delegate back to `self` (ElementBuilder),
-          # thus configuring our element.
-          constructor_builder.instance_exec(param_proxy, &block)
+        def state
+          Scripting::Builder.new(@component_builder).tap { |b| b.cursor = [ :state ] }
         end
 
         def attributes
@@ -58,24 +55,21 @@ module Tailmix
 
           if block_given?
             raise "Cannot provide both `to:` and a block to `on`" if to
-
             action_name = :"#{@name}_#{event_name}_handler"
-
-            # 2. We use a reference to ComponentBuilder to create an action "on the fly"
             @component_builder.action(action_name, &block)
           end
 
-          return unless action_name # We do nothing if there is neither `to:` nor a block.
+          return unless action_name
 
           @event_bindings << { event: event_name, action: action_name, with: with }
         end
 
         def param
-          @_param_proxy ||= Scripting::ParamProxy.new
+          Scripting::Builder.new(@component_builder).tap { |b| b.cursor = [ :param ] }
         end
 
         def event
-          Scripting::EventProxy.new
+          Scripting::Builder.new(@component_builder).tap { |b| b.cursor = [ :event ] }
         end
 
         def model(attribute_name, to:, on: :input, action: nil, debounce: nil)
@@ -88,7 +82,9 @@ module Tailmix
         end
 
         def dimension(name, on: nil, &block)
-          builder = DimensionBuilder.new(on: on)
+          resolved_on = resolve_expressions(on)
+
+          builder = DimensionBuilder.new(on: resolved_on)
           builder.instance_eval(&block)
           @dimensions[name.to_sym] = builder.build_dimension
         end

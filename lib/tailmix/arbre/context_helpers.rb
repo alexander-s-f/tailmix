@@ -7,7 +7,7 @@ if defined?(Arbre)
         component = component_class.new(**attributes)
         ui_context = component.ui
 
-        yield ui_context if block_given?
+        yield ui_context, component if block_given?
       end
     end
   end

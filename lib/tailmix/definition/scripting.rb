@@ -10,5 +10,4 @@ module Tailmix
 end
 
 require_relative "scripting/interpreter"
-require_relative "scripting/expression_builder"
 require_relative "scripting/builder"

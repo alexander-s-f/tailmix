@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require_relative "element_builder"
-# require_relative "../scripting"
 
 module Tailmix
   module Definition
@@ -11,7 +10,7 @@ module Tailmix
 
         def initialize(component_name:)
           @states = {}
-          @actions = {} # This will now store S-expressions
+          @actions = {}
           @elements = {}
           @plugins = {}
           @reactions = {}
@@ -31,7 +30,9 @@ module Tailmix
 
           if toggle
             action_name = :"toggle_#{name}"
-            action(action_name) { toggle(name) }
+            action(action_name) do |b|
+              b.state.send(name).toggle
+            end
           end
         end
 
@@ -41,9 +42,7 @@ module Tailmix
 
         def action(name, &block)
           builder = Scripting::Builder.new(self)
-          payload_proxy = Scripting::PayloadProxy.new
-          builder.instance_exec(payload_proxy, &block)
-
+          builder.instance_exec(builder, &block)
           @actions[name.to_sym] = builder.expressions
         end
 
@@ -72,7 +71,7 @@ module Tailmix
 
         def build_definition
           actions_payload = @actions.transform_values do |expressions|
-            { expressions: expressions } # Wrap in a hash for clarity
+            { expressions: expressions }
           end
 
           reactions_payload = @reactions.transform_values do |list_of_expression_sets|

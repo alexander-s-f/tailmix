@@ -43,6 +43,10 @@ module Tailmix
           def [](key)
             data[key.to_sym]
           end
+
+          def to_h
+            data
+          end
         end.new(merged_data)
       end
 

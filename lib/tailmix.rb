@@ -2,6 +2,7 @@
 
 require_relative "tailmix/version"
 require_relative "tailmix/configuration"
+require_relative "tailmix/definition/scripting"
 require_relative "tailmix/dsl"
 require_relative "tailmix/definition"
 require_relative "tailmix/runtime"
