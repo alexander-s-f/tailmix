@@ -15,11 +15,13 @@ export class Component {
         this._state = this.loadInitialState();
         this.elements = this.findElements();
 
-        // NEW: Instantiate the core parts of the new engine
         this.updater = new Updater(this);
         this.interpreter = new Interpreter(this);
         this.triggerManager = new TriggerManager(this, this.interpreter);
         this.reactionEngine = new ReactionEngine(this, this.interpreter);
+
+        this.isUpdateQueued = false;
+        this.pendingState = {};
 
         // --- API ---
         this.api = {
@@ -43,7 +45,8 @@ export class Component {
 
         // Initialize everything
         this.triggerManager.bindActions();
-        this.initializeModels(); // Keep this for `model` bindings
+        this.initializeModels();
+        // Start the first render synchronously
         this.updater.run(this._state, {});
         pluginManager.connect(this);
 
@@ -67,6 +70,9 @@ export class Component {
         const oldState = { ...this._state };
         const changedKeys = new Set();
 
+        // 1. Gathering changes in `pendingState`
+        Object.assign(this.pendingState, newState);
+
         for (const key in newState) {
             if (JSON.stringify(this._state[key]) !== JSON.stringify(newState[key])) {
                 changedKeys.add(key);
@@ -75,27 +81,43 @@ export class Component {
 
         if (changedKeys.size === 0) return;
 
+        // 2. Immediately update the internal state so that subsequent actions see current data.
         Object.assign(this._state, newState);
 
-        for (const key of changedKeys) {
-            const config = this.definition.states[key];
-            if (config.persist) {
-                const storageKey = `${this.definition.name}:${key}`;
-                localStorage.setItem(storageKey, JSON.stringify(this._state[key]));
-            }
-            if (config.sync === 'hash') {
-                if (this._state[key]) {
-                    window.location.hash = this._state[key];
-                } else {
-                    history.pushState("", document.title, window.location.pathname + window.location.search);
-                }
-            }
-        }
-
-        this.element.dataset.tailmixState = JSON.stringify(this._state);
-
-        this.updater.run(this._state, oldState);
+        // 3. Starting reactions (they should be synchronous)
         this.reactionEngine.run(changedKeys);
+
+        // 4. Planning DOM Update
+        this.scheduleUpdate();
+    }
+
+    /**
+     * Plans to call the updater on the next animation frame.
+     */
+    scheduleUpdate() {
+        if (this.isUpdateQueued) return;
+
+        this.isUpdateQueued = true;
+
+        requestAnimationFrame(() => {
+            this.performUpdate();
+        });
+    }
+
+    /**
+     * Performs the actual DOM update and resets the queue.
+     */
+    performUpdate() {
+        const stateToRender = { ...this._state };
+
+        // Updating the data-attribute before rendering
+        this.element.dataset.tailmixState = JSON.stringify(stateToRender);
+
+        // Launching our asynchronous updater
+        this.updater.run(stateToRender, {}); // `oldState` здесь уже не так важен
+
+        // Resetting the flag so that subsequent state changes can schedule a new update
+        this.isUpdateQueued = false;
     }
 
     /**
