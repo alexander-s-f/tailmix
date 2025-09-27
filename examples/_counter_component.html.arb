@@ -1,0 +1,7 @@
+
+tailmix CounterComponent do |ui|
+  div ui.container.component do
+    div ui.label
+    div "Increment", ui.increment_button(test: 123)
+  end
+end

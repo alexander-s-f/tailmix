@@ -1,0 +1,23 @@
+tabs_data =  [
+  { tab: :profile, title: "Profile" },
+  { tab: :billing, title: "Billing" }
+]
+
+tailmix TabsComponent, tabs: tabs_data do |ui, component|
+  div ui.container.component do
+    div class: "flex border-b border-gray-700" do
+      ui.state.tabs.each do |tab|
+        div ui.tab(key: tab[:tab]) do
+          tab[:title]
+        end
+      end
+    end
+    div class: "p-4" do
+      ui.state.tabs.each do |tab|
+        div ui.panel(key: tab[:tab]) do
+          "Content for: #{tab[:title]}"
+        end
+      end
+    end
+  end
+end

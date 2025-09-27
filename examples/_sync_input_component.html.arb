@@ -1,0 +1,7 @@
+
+tailmix SyncInputComponent do |ui|
+  div ui.container.component do
+    div ui.label
+    input ui.input
+  end
+end
