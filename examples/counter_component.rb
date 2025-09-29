@@ -9,7 +9,7 @@ class CounterComponent
 
     element :container, "p-4"
     element :increment_button, "text-xl text-yellow-500 cursor-pointer" do
-      constructor do |param|
+      constructor do
         on :click do
           state.count.increment
           log(param) # >> {test: 123}

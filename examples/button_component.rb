@@ -10,12 +10,12 @@ class ButtonComponent
     state :look, default: :fill
 
     element :button, "inline-flex font-semibold border rounded px-4 py-2" do
-      dimension :intent do
+      dimension on: state.intent do
         variant :primary, "bg-blue-500 text-white border-blue-500"
         variant :danger, "bg-red-500 text-white border-red-500"
       end
 
-      dimension :look do
+      dimension on: state.look do
         variant :fill, ""
         variant :outline, "bg-transparent"
       end

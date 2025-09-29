@@ -15,7 +15,7 @@ class SyncInputComponent
       type "text"
       placeholder "Type something here..."
 
-      model :value, to: :value
+      model this.value, to: state.value
     end
   end
 
