@@ -17,14 +17,19 @@ module Tailmix
         @element_node.rules << KeyBindingRule.new(name: name, collection: to.to_ast, lookup: on.to_ast)
       end
 
-      def bind(attribute, to:)
-        expression_ast = if to.is_a?(ExpressionBuilder)
-          to.to_ast
-        else
-          AST::Property.new(source: :state, path: [ to ])
-        end
+      def bind(target, to:)
+        expression_ast = resolve_ast(to)
+        target_ast = resolve_ast(target)
 
-        @element_node.rules << BindingRule.new(attribute: attribute, expression: expression_ast)
+        # We determine if this is a content or attribute binding
+        if target_ast.is_a?(AST::Property) && target_ast.source == :this && [ :content, :text, :html ].include?(target_ast.path.first)
+          # This is a content binding
+          type = target_ast.path.first # :text or :html
+          @element_node.rules << BindingRule.new(attribute: type, expression: expression_ast, is_content: true)
+        else
+          # This is an attribute binding
+          @element_node.rules << BindingRule.new(attribute: target_ast.path.first, expression: expression_ast)
+        end
       end
 
       def dimension(on:, &block)

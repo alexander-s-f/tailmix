@@ -90,9 +90,16 @@ module Tailmix
       end
 
       def attach_event(context, set, args)
+        # `context[:param]` contains render-time parameters, for example {test: 123}
+        payload = context[:param] || {}
+
         current_actions = set.data[:tailmix_action] || ""
         new_action_string = "#{current_actions} #{args[:event]}->#{args[:action_name]}".strip
+
         new_data = set.data.merge(tailmix_action: new_action_string)
+        # Add payload if it is not empty
+        new_data.merge!("tailmix-action-with": payload.to_json) if payload.any?
+
         set.merge(data: new_data)
       end
 

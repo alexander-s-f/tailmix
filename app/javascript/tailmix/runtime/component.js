@@ -1,261 +1,85 @@
-// app/javascript/tailmix/runtime/component.js
-
-import { Updater } from './updater';
-import { Interpreter } from './interpreter';
+import { Executor } from './executor';
+import { DOMUpdater } from './dom_updater';
+import { ActionInterpreter } from './action_interpreter';
 import { TriggerManager } from './trigger_manager';
-import { ReactionEngine } from './reaction_engine';
 
-/**
- * Represents a component instance that manages the state and behavior of a specific UI element.
- */
 export class Component {
-    constructor(element, definition, pluginManager) {
+    constructor(element, definition, dictionary) {
         this.element = element;
-        this.definition = definition;
+        this.dictionary = dictionary;
+        this.definition = this.decompress(definition);
         this._state = this.loadInitialState();
-        this.elements = this.findElements();
 
-        this.updater = new Updater(this);
-        this.interpreter = new Interpreter(this);
-        this.triggerManager = new TriggerManager(this, this.interpreter);
-        this.reactionEngine = new ReactionEngine(this, this.interpreter);
+        this.executor = new Executor();
+        this.actionInterpreter = new ActionInterpreter(this);
+        this.triggerManager = new TriggerManager(this);
 
         this.isUpdateQueued = false;
-        this.pendingState = {};
 
-        // --- API ---
-        this.api = {
-            get state() {
-                return {...this._state};
-            },
-            setState: (newState) => this.update(newState),
-            element: (name) => this.elements[name],
-            // Allows running an action programmatically
-            runAction: (name, event = null) => {
-                const actionDef = this.definition.actions[name];
-                if (actionDef?.expressions) {
-                    this.interpreter.run(actionDef.expressions, event);
-                } else {
-                    console.warn(`Tailmix: Action "${name}" not found.`);
-                }
-            },
-            dispatch: (name, detail) => this.dispatch(name, detail),
-            on: (name, callback) => this.element.addEventListener(`tailmix:${name}`, callback),
-        };
-
-        // Initialize everything
         this.triggerManager.bindActions();
-        this.initializeModels();
-        // Start the first render synchronously
-        this.updater.run(this._state, {});
-        pluginManager.connect(this);
+        this.performUpdate();
 
-        this.initializeStateSyncing();
-        console.log(`Tailmix component "${this.definition.name || 'Unnamed'}" initialized with new engine.`, this);
+        console.log(`Tailmix component "${this.definition.name || 'Unnamed'}" initialized.`);
     }
 
-    /**
-     * Gets the current state of the component.
-     * @return {Object} The current state of the component.
-     */
-    get state() {
-        return this._state;
-    }
-
-    /**
-     * Updates the component's state and triggers the update/reaction cycle.
-     * @param {Object} newState A hash of state keys and their new values.
-     */
     update(newState) {
-        const oldState = { ...this._state };
-        const changedKeys = new Set();
-
-        // 1. Gathering changes in `pendingState`
-        Object.assign(this.pendingState, newState);
-
-        for (const key in newState) {
-            if (JSON.stringify(this._state[key]) !== JSON.stringify(newState[key])) {
-                changedKeys.add(key);
-            }
-        }
-
-        if (changedKeys.size === 0) return;
-
-        // 2. Immediately update the internal state so that subsequent actions see current data.
         Object.assign(this._state, newState);
-
-        // 3. Starting reactions (they should be synchronous)
-        this.reactionEngine.run(changedKeys);
-
-        // 4. Planning DOM Update
         this.scheduleUpdate();
     }
 
-    /**
-     * Plans to call the updater on the next animation frame.
-     */
     scheduleUpdate() {
         if (this.isUpdateQueued) return;
-
         this.isUpdateQueued = true;
-
-        requestAnimationFrame(() => {
-            this.performUpdate();
-        });
+        requestAnimationFrame(() => this.performUpdate());
     }
 
-    /**
-     * Performs the actual DOM update and resets the queue.
-     */
     performUpdate() {
-        const stateToRender = { ...this._state };
+        this.element.dataset.tailmixState = JSON.stringify(this._state);
 
-        // Updating the data-attribute before rendering
-        this.element.dataset.tailmixState = JSON.stringify(stateToRender);
+        const allElements = [this.element, ...this.element.querySelectorAll('[data-tailmix-element]')];
 
-        // Launching our asynchronous updater
-        this.updater.run(stateToRender, {}); // `oldState` здесь уже не так важен
+        allElements.forEach(elementNode => {
+            const elementName = elementNode.dataset.tailmixElement;
+            if (!elementName) return;
 
-        // Resetting the flag so that subsequent state changes can schedule a new update
+            const elementDef = this.definition.elements.find(e => e.name === elementName);
+            if (!elementDef) return;
+
+            const attributeSet = this.executor.execute(elementDef.rules, this._state, {});
+            DOMUpdater.apply(elementNode, attributeSet, elementDef.base_classes);
+        });
+
         this.isUpdateQueued = false;
     }
 
-    /**
-     * Dispatches a custom event from the component's root element.
-     * @param {string} name The name of the event (without the 'tailmix:' prefix).
-     * @param {any} detail The data to be attached to the event.
-     */
-    dispatch(name, detail) {
-        const event = new CustomEvent(`tailmix:${name}`, {bubbles: true, detail});
-        this.element.dispatchEvent(event);
-    }
-
-    /**
-     * Loads and parses the initial state from the data attribute.
-     * @return {Object} The parsed initial state.
-     */
     loadInitialState() {
         const initialState = JSON.parse(this.element.dataset.tailmixState || '{}');
-        const stateSchema = this.definition.states || {};
+        const stateDefs = this.definition.states || [];
 
-        for (const key in stateSchema) {
-            const config = stateSchema[key];
-            let value = initialState[key];
-
-            if (config.persist) {
-                const storageKey = `${this.definition.name}:${key}`;
-                const persistedValue = localStorage.getItem(storageKey);
-
-                if (persistedValue !== null) {
-                    value = JSON.parse(persistedValue);
-                }
-            }
-
-            if (config.sync === 'hash') {
-                const hashValue = window.location.hash.substring(1);
-                if (hashValue) {
-                    value = hashValue;
-                }
-            }
-
-            if (value !== undefined) {
-                initialState[key] = value;
-            } else if (config.default !== undefined) {
-                initialState[key] = config.default;
+        for (const stateDef of stateDefs) {
+            const key = stateDef.name;
+            if (initialState[key] === undefined && stateDef.options.default !== undefined) {
+                initialState[key] = stateDef.options.default;
             }
         }
         return initialState;
     }
 
-    /**
-     * Finds all named elements within the component's scope.
-     * @return {Object<string, HTMLElement>} A map of element names to DOM nodes.
-     */
-    findElements() {
-        const elements = {};
-        const elementNodes = this.element.querySelectorAll('[data-tailmix-element]');
-        elementNodes.forEach(node => {
-            const name = node.dataset.tailmixElement;
-            elements[name] = node;
-        });
-        if (this.element.dataset.tailmixElement) {
-            elements[this.element.dataset.tailmixElement] = this.element;
-        }
-        return elements;
-    }
+    decompress(node) {
+        if (typeof node !== 'object' || node === null) return node;
 
-    /**
-     * Initializes two-way data bindings defined with `model`.
-     */
-    initializeModels() {
-        for (const elName in this.definition.elements) {
-            const element = this.elements[elName];
-            const modelBindings = this.definition.elements[elName].model_bindings;
-            if (!element || !modelBindings) continue;
-
-            for (const attrName in modelBindings) {
-                const binding = modelBindings[attrName];
-                element.addEventListener(binding.event, (event) => {
-                    this.update({[binding.state]: event.target[attrName]});
-                });
-            }
-        }
-    }
-
-    /**
-     * Builds and returns an object representing the scoped attributes for a given element.
-     *
-     * @param {string} elementName - The name of the element for which scoped attributes are being built.
-     * @param {Object} withData - Additional state data to temporarily augment the current state when calculating attributes.
-     * @return {Object} An object containing the final scoped attributes, including class and custom data attributes.
-     */
-    buildScopedAttributes(elementName, withData) {
-        const elementDef = this.definition.elements[elementName];
-        if (!elementDef) return {};
-
-        // Creating a temporary, "hybrid" state
-        const scopedState = { ...this._state, ...withData };
-
-        const finalAttributes = {};
-
-        // Apply base classes
-        const baseClasses = elementDef.attributes?.classes || [];
-        const classList = new Set(baseClasses);
-
-        // Apply dimensions
-        if (elementDef.dimensions) {
-            for (const dimName in elementDef.dimensions) {
-                const dimDef = elementDef.dimensions[dimName];
-                const stateValue = scopedState[dimName] !== undefined ? scopedState[dimName] : dimDef.default;
-                const variantDef = dimDef.variants?.[stateValue];
-                if (variantDef?.classes) {
-                    variantDef.classes.forEach(cls => classList.add(cls));
-                }
-            }
+        if (Array.isArray(node)) {
+            return node.map(item => this.decompress(item));
         }
 
-        // Gathering final attributes
-        finalAttributes.class = [...classList].join(' ');
-        finalAttributes['data-tailmix-element'] = elementName;
-
-        return finalAttributes;
-    }
-
-    /**
-     * Initializes listeners for external state changes (e.g., URL hash).
-     */
-    initializeStateSyncing() {
-        window.addEventListener('hashchange', () => {
-            for (const key in this.definition.states) {
-                const config = this.definition.states[key];
-                if (config.sync === 'hash') {
-                    const hashValue = window.location.hash.substring(1);
-                    // Updating the component's state if it differs from the current hash
-                    if (this.state[key] !== hashValue) {
-                        this.update({ [key]: hashValue || config.default });
-                    }
-                }
+        const newNode = {};
+        for (const key in node) {
+            if (key === 'classes' && Array.isArray(node[key])) {
+                newNode[key] = node[key].map(id => this.dictionary[id]);
+            } else {
+                newNode[key] = this.decompress(node[key]);
             }
-        });
+        }
+        return newNode;
     }
 }
