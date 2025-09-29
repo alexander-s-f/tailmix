@@ -33,7 +33,7 @@ module Tailmix
       case node
       when Hash
         node.each do |key, value|
-          if key == :classes && value.is_a?(Array)
+          if (key == :classes || key == :base_classes) && value.is_a?(Array)
             node[key] = value.map { |cls| get_class_id(cls) }
           else
             traverse_and_build_dictionary(value)
