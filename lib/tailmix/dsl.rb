@@ -1,21 +1,17 @@
 # frozen_string_literal: true
 
-require_relative "definition/builders/component_builder"
-require_relative "definition/merger"
-require_relative "dev/tools"
+require_relative "ast"
 
 module Tailmix
   module DSL
-    def tailmix(&block)
-      child_context = Definition::Builders::ComponentBuilder.new(component_name: self)
-      child_context.instance_eval(&block)
-      child_definition = child_context.build_definition
 
-      if superclass.respond_to?(:tailmix_definition) && (parent_definition = superclass.tailmix_definition)
-        @tailmix_definition = Definition::Merger.call(parent_definition, child_definition)
-      else
-        @tailmix_definition = child_definition
-      end
+    def tailmix(&block)
+      # Parsing: creating an AST-tree
+      builder = AST::ComponentBuilder.new(self.name)
+      builder.instance_eval(&block)
+
+      # Compilation: Turning the AST into a final, executable structure
+      @tailmix_definition = AST::Compiler.call(builder.root_node)
     end
 
     def tailmix_definition

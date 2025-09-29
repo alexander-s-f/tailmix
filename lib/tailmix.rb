@@ -2,13 +2,10 @@
 
 require_relative "tailmix/version"
 require_relative "tailmix/configuration"
-require_relative "tailmix/definition/scripting"
 require_relative "tailmix/dsl"
-require_relative "tailmix/definition"
 require_relative "tailmix/runtime"
 require_relative "tailmix/middleware/registry_cleaner"
 require_relative "tailmix/view_helpers"
-require_relative "tailmix/service"
 
 module Tailmix
   class Error < StandardError; end

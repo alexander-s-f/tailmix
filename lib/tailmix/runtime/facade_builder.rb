@@ -5,9 +5,9 @@ module Tailmix
     class FacadeBuilder
       def self.build(definition)
         Class.new(Tailmix::Runtime::Context) do
-          definition.elements.each_key do |element_name|
-            define_method(element_name) do |with = {}|
-              attributes_for(element_name, with: with)
+          definition.elements.each do |element|
+            define_method(element.name) do |with = {}|
+              attributes_for(element.name, with: with)
             end
           end
 
