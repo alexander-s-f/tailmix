@@ -21,14 +21,12 @@ module Tailmix
         expression_ast = resolve_ast(to)
         target_ast = resolve_ast(target)
 
-        # We determine if this is a content or attribute binding
-        if target_ast.is_a?(AST::Property) && target_ast.source == :this && [ :content, :text, :html ].include?(target_ast.path.first)
-          # This is a content binding
-          type = target_ast.path.first # :text or :html
+        if target_ast.is_a?(AST::Property) && target_ast.source == :this && [:content, :text, :html].include?(target_ast.path.first)
+          type = target_ast.path.first
           @element_node.rules << BindingRule.new(attribute: type, expression: expression_ast, is_content: true)
         else
-          # This is an attribute binding
-          @element_node.rules << BindingRule.new(attribute: target_ast.path.first, expression: expression_ast)
+          attribute_name = target_ast.is_a?(AST::Property) ? target_ast.path.first : target_ast.value
+          @element_node.rules << BindingRule.new(attribute: attribute_name, expression: expression_ast, is_content: false)
         end
       end
 

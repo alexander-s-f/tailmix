@@ -91,7 +91,8 @@ module Tailmix
           when BindingRule
             program << [ :evaluate_and_apply_attribute, {
               attribute: rule.attribute,
-              expression: compile_expression(rule.expression)
+              expression: compile_expression(rule.expression),
+              is_content: rule.is_content
             } ]
           when ModelBindingRule
             program << [ :setup_model_binding, {

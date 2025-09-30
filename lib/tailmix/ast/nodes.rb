@@ -13,7 +13,7 @@ module Tailmix
     # Describe all the logic and reactivity of the element.
     KeyBindingRule = Struct.new(:name, :collection, :lookup, keyword_init: true)
     DimensionRule = Struct.new(:condition, :variants, keyword_init: true)
-    BindingRule = Struct.new(:attribute, :expression, keyword_init: true)
+    BindingRule = Struct.new(:attribute, :expression, :is_content, keyword_init: true)
     EventHandlerRule = Struct.new(:event, :action_name, :inline_action, keyword_init: true)
     ModelBindingRule = Struct.new(:target_expression, :state_expression, :options, keyword_init: true)
 

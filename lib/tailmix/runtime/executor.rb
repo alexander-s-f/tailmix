@@ -85,7 +85,11 @@ module Tailmix
         value = ExpressionExecutor.call(args[:expression], context)
         return set if value.nil?
 
-        new_other = set.other.merge(args[:attribute] => value)
+        if args[:is_content]
+          new_other = set.other.merge(content: value)
+        else
+          new_other = set.other.merge(args[:attribute] => value)
+        end
         set.merge(other: new_other)
       end
 
@@ -104,16 +108,17 @@ module Tailmix
       end
 
       def apply_model_binding(context, set, args)
-        # args[:target] -> [:this, :value]
-        # args[:state] -> [:state, :value]
         attribute_name = args.dig(:target, 1)
         state_key = args.dig(:state, 1)
         value = ExpressionExecutor.call(args[:state], context)
 
+        event_name = args.dig(:options, :on) || "input"
+
         new_other = set.other.merge(attribute_name => value)
         new_data = set.data.merge(
           "tailmix-model-attr": attribute_name,
-          "tailmix-model-state": state_key
+          "tailmix-model-state": state_key,
+          "tailmix-model-event": event_name
         )
 
         set.merge(other: new_other, data: new_data)

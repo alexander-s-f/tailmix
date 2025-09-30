@@ -26,7 +26,7 @@ module Tailmix
       end
 
       def render
-        final_hash = @set.other.dup
+        final_hash = @set.other.dup.except(:content)
 
         class_string = @set.classes.to_a.join(" ")
         final_hash["class"] = class_string unless class_string.empty?
