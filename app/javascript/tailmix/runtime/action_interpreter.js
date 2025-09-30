@@ -14,16 +14,21 @@ const resolveKeyContext = (element, component) => {
     if (!element || !element.dataset.tailmixElement) return context;
 
     const elementName = element.dataset.tailmixElement;
-    const elementDef = component.definition.elements[elementName];
-    if (!elementDef?.key_config) return context;
+    const elementDef = component.definition.elements.find(e => e.name === elementName);
+    if (!elementDef) return context;
 
-    const keyConfig = elementDef.key_config;
+    const setupContextInstruction = elementDef.rules.find(rule => rule[0] === 'setup_context');
+    if (!setupContextInstruction) return context;
+
+    const keyConfig = setupContextInstruction[1]; // { name: 'tab_item', ... }
+
     const keyName = keyConfig.name;
     const keyValue = element.dataset[`tailmixKey${keyName.charAt(0).toUpperCase() + keyName.slice(1)}`];
 
     if (keyValue === undefined) return context;
 
-    const collection = component.state[keyConfig.collection];
+    const collectionName = keyConfig.collection[1]; // [:state, :tabs] -> 'tabs'
+    const collection = component.state[collectionName];
     if (!Array.isArray(collection)) return context;
 
     const item = collection.find(i => String(i[keyName]) === String(keyValue));
@@ -64,7 +69,22 @@ const OPERATIONS = {
     },
     state: (interpreter, args, context) => interpreter.component.state[args[0]],
     param: (interpreter, args, context) => args.reduce((obj, key) => obj?.[key], context.param),
+    item: (interpreter, args, context) => {
+        // `item` is used in actions, but `context` for the action does not contain `item`.
+        // `item` is a rendering concept. In an action, we should use `this`
+        // to get the element context. For consistency and to avoid errors,
+        // we will make `item` an alias for `this` in the action context.
+        if (!context.event?.currentTarget) return null;
+        const element = context.event.currentTarget;
+        const keyContext = resolveKeyContext(element, interpreter.component);
 
+        // item.id -> this.key.tab_item.id
+        // We assume that the path will be ['key', keyName, ...path]
+        const keyName = Object.keys(keyContext.key)[0];
+        if (!keyName) return null;
+
+        return args.reduce((obj, key) => obj?.[key], keyContext.key[keyName]);
+    },
     // --- Functions ---
     log: async (interpreter, args, context) => {
         const resolvedArgs = await Promise.all(args.map(arg => interpreter.evaluate(arg, context)));
@@ -120,6 +140,7 @@ export class ActionInterpreter {
             return handler(this, args, context);
         } else {
             console.warn(`Unknown expression operator: ${op}`);
+            console.warn(expression);
         }
     }
 }

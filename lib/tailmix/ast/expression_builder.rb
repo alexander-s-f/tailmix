@@ -1,15 +1,15 @@
 # frozen_string_literal: true
 
-# frozen_string_literal: true
-
 require_relative "nodes"
+require_relative "helpers"
 
 module Tailmix
   module AST
     class ExpressionBuilder
-      def initialize(source)
-        # The cursor stores an AST node, not an S-expression.
-        @node = Property.new(source: source, path: [])
+      include Helpers
+
+      def initialize(source, path = [])
+        @node = Property.new(source: source, path: path)
       end
 
       # --- Operators ---
@@ -21,6 +21,11 @@ module Tailmix
       def not?
         @node = UnaryOperation.new(operator: :not, operand: @node)
         self
+      end
+
+      def find(args)
+        # `find` is a terminal method, it returns a completed AST node, not `self`
+        CollectionOperation.new(collection: to_ast, operation: :find, args: resolve_ast(args))
       end
 
       # ... gt, lt, and, or ...
@@ -41,16 +46,6 @@ module Tailmix
       # Converts the builder into a final AST node
       def to_ast
         @node
-      end
-
-      private
-
-      def resolve_ast(value)
-        case value
-        when ExpressionBuilder then value.to_ast
-        when Value, Property, BinaryOperation, UnaryOperation, FunctionCall then value
-        else Value.new(value: value)
-        end
       end
     end
   end

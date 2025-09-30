@@ -19,8 +19,6 @@ const selectUpdateStrategy = (element, key, value) => {
     // For <select>, the most important thing is to update the .value property.
     // This will reliably change the selected <option>.
     if (key === 'value') {
-        console.log('Select value:', value);
-        console.log(element);
         if (element.value !== value) {
             element.value = value;
         }

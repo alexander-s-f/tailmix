@@ -1,10 +1,14 @@
 # frozen_string_literal: true
 
+require_relative "helpers"
+
 module Tailmix
   module AST
     # Contains a full set of standard commands and helpers for DSL.
     # This module can be included in any Builder (ActionBuilder, etc.).
     module StandardLibrary
+      include Helpers
+
       # --- Helpers for expressions ---
       def state
         ExpressionBuilder.new(:state)
@@ -30,8 +34,12 @@ module Tailmix
         ExpressionBuilder.new(:payload)
       end
 
-      def var
-        ExpressionBuilder.new(:var)
+      # def var
+      #   ExpressionBuilder.new(:var)
+      # end
+
+      def var(variable_name)
+        ExpressionBuilder.new(:var, [variable_name])
       end
 
       # --- Commands ---
@@ -69,19 +77,7 @@ module Tailmix
       private
 
       def add_instruction(operation, args)
-        # We assume that this module will be included in a class
-        # that has @instructions
         @instructions << Instruction.new(operation: operation, args: args)
-      end
-
-      def resolve_ast(value)
-        case value
-        when ExpressionBuilder then value.to_ast
-        when Value, Property, BinaryOperation, UnaryOperation, FunctionCall then value
-        when Array then value.map { |v| resolve_ast(v) }
-        when Hash then value.transform_values { |v| resolve_ast(v) }
-        else Value.new(value: value)
-        end
       end
     end
   end

@@ -19,11 +19,10 @@ module Tailmix
       end
 
       def execute
-        context = build_initial_context
+        context = { state: @state.to_h, param: @with_data }
         attribute_set = HTML::AttributeSet.new(
           classes: Set.new(@element_def.base_classes),
-          other: { "data-tailmix-element" => @element_def.name }
-            .merge(@element_def.default_attributes || {})
+          other: { "data-tailmix-element" => @element_def.name }.merge(@element_def.default_attributes || {})
         )
 
         @program.each do |instruction|
@@ -37,73 +36,48 @@ module Tailmix
 
       def execute_instruction(instruction, context, set)
         opcode, args = instruction
-
         case opcode
-        when :setup_context
-          apply_setup_context(context, set, args)
+        when :define_var
+          [apply_define_var(context, args), set]
         when :evaluate_and_apply_classes
-          [ context, apply_classes(context, set, args) ]
+          [context, apply_classes(context, set, args)]
         when :evaluate_and_apply_attribute
-          [ context, apply_attribute(context, set, args) ]
+          [context, apply_attribute(context, set, args)]
         when :attach_event_handler
-          [ context, attach_event(context, set, args) ]
+          [context, attach_event(context, set, args)]
         when :setup_model_binding
-          # `apply_model_binding` теперь не возвращает новый контекст
-          [ context, apply_model_binding(context, set, args) ]
+          [context, apply_model_binding(context, set, args)]
         end
       end
 
-      def build_initial_context
-        { state: @state.to_h, param: @with_data }
-      end
-
-      def apply_setup_context(context, set, args)
-        param_value = ExpressionExecutor.call(args[:lookup], context)
-        return [ context, set ] unless param_value
-
-        collection = @state[args[:collection][1]]
-        item = collection&.find { |i| i[args[:name].to_sym] == param_value }
-        return [ context, set ] unless item
-
-        new_data = set.data.merge("tailmix-key-#{args[:name]}": param_value)
-        new_set = set.merge(data: new_data)
-
-        new_context = context.merge(item: item, this: { key: { args[:name].to_sym => item } })
-        [ new_context, new_set ]
+      def apply_define_var(context, args)
+        value = ExpressionExecutor.call(args[:expression], context)
+        context.merge(var: (context[:var] || {}).merge(args[:name] => value))
       end
 
       def apply_classes(context, set, args)
         value = ExpressionExecutor.call(args[:condition], context)
         classes_to_apply = args.dig(:variants, value)
         return set unless classes_to_apply
-
-        new_classes = set.classes.dup.merge(classes_to_apply)
-        set.merge(classes: new_classes)
+        set.merge(classes: set.classes.dup.merge(classes_to_apply))
       end
 
       def apply_attribute(context, set, args)
         value = ExpressionExecutor.call(args[:expression], context)
         return set if value.nil?
-
         if args[:is_content]
-          new_other = set.other.merge(content: value)
+          set.merge(other: set.other.merge(content: value))
         else
-          new_other = set.other.merge(args[:attribute] => value)
+          set.merge(other: set.other.merge(args[:attribute] => value))
         end
-        set.merge(other: new_other)
       end
 
       def attach_event(context, set, args)
-        # `context[:param]` contains render-time parameters, for example {test: 123}
         payload = context[:param] || {}
-
         current_actions = set.data[:tailmix_action] || ""
         new_action_string = "#{current_actions} #{args[:event]}->#{args[:action_name]}".strip
-
         new_data = set.data.merge(tailmix_action: new_action_string)
-        # Add payload if it is not empty
         new_data.merge!("tailmix-action-with": payload.to_json) if payload.any?
-
         set.merge(data: new_data)
       end
 
@@ -111,16 +85,12 @@ module Tailmix
         attribute_name = args.dig(:target, 1)
         state_key = args.dig(:state, 1)
         value = ExpressionExecutor.call(args[:state], context)
-
-        event_name = args.dig(:options, :on) || "input"
-
         new_other = set.other.merge(attribute_name => value)
         new_data = set.data.merge(
           "tailmix-model-attr": attribute_name,
           "tailmix-model-state": state_key,
-          "tailmix-model-event": event_name
+          "tailmix-model-event": args.dig(:options, :on) || 'input'
         )
-
         set.merge(other: new_other, data: new_data)
       end
     end

@@ -17,6 +17,12 @@ module Tailmix
         @element_node.rules << KeyBindingRule.new(name: name, collection: to.to_ast, lookup: on.to_ast)
       end
 
+      def let(name, expression, **options)
+        # expression here is already a ready AST node (for example, CollectionOperation),
+        # which was returned by the `.find` method
+        @element_node.rules << LetRule.new(variable_name: name, expression: expression, options: options)
+      end
+
       def bind(target, to:)
         expression_ast = resolve_ast(to)
         target_ast = resolve_ast(target)

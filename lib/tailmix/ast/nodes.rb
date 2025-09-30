@@ -11,7 +11,7 @@ module Tailmix
 
     # --- Rules for Elements ---
     # Describe all the logic and reactivity of the element.
-    KeyBindingRule = Struct.new(:name, :collection, :lookup, keyword_init: true)
+    LetRule = Struct.new(:variable_name, :expression, :options, keyword_init: true)
     DimensionRule = Struct.new(:condition, :variants, keyword_init: true)
     BindingRule = Struct.new(:attribute, :expression, :is_content, keyword_init: true)
     EventHandlerRule = Struct.new(:event, :action_name, :inline_action, keyword_init: true)
@@ -29,5 +29,6 @@ module Tailmix
     Property = Struct.new(:source, :path, keyword_init: true)
     BinaryOperation = Struct.new(:operator, :left, :right, keyword_init: true)
     UnaryOperation = Struct.new(:operator, :operand, keyword_init: true)
+    CollectionOperation = Struct.new(:collection, :operation, :args, keyword_init: true)
   end
 end

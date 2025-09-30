@@ -10,7 +10,6 @@ module Tailmix
       end
 
       def compile_root(node)
-        # Compiling all parts of the AST into the final structure
         Root.new(
           name: node.name,
           states: node.states,
@@ -21,8 +20,6 @@ module Tailmix
       end
 
       private
-
-      # --- High-level Compilers ---
 
       def compile_actions(nodes)
         nodes.map do |node|
@@ -44,22 +41,22 @@ module Tailmix
         end
       end
 
-      # --- Expression Compiler (AST -> S-expression) ---
-      # This method remains our "bridge" from the AST to the executable format
       def compile_expression(node)
         case node
         when Value then node.value
         when Property then [ node.source, *node.path ]
         when BinaryOperation then [ node.operator, compile_expression(node.left), compile_expression(node.right) ]
         when UnaryOperation then [ node.operator, compile_expression(node.operand) ]
-        when FunctionCall
-          [ node.name, *node.args.map { |arg| compile_expression(arg) } ]
+        when FunctionCall then [ node.name, *node.args.map { |arg| compile_expression(arg) } ]
+        when CollectionOperation
+          [ node.operation, compile_expression(node.collection), compile_expression(node.args) ]
+        when Hash
+          node.transform_values { |v| compile_expression(v) }
         else
           raise "Unknown Expression AST node: #{node.class}"
         end
       end
 
-      # --- Instruction Compiler (for Actions) ---
       def compile_instruction(node)
         Instruction.new(
           operation: node.operation,
@@ -67,26 +64,19 @@ module Tailmix
         )
       end
 
-      # --- Rules Compiler (Rules -> Render Program) ---
-      # All the magic happens here.
       def compile_rules(nodes)
         program = []
         nodes.each do |rule|
           case rule
-          when KeyBindingRule
-            # KeyBinding is not an instruction but metadata for the runtime.
-            # We convert it into a special instruction `SETUP_CONTEXT`.
-            program << [ :setup_context, {
-              name: rule.name,
-              collection: compile_expression(rule.collection),
-              lookup: compile_expression(rule.lookup)
+          when LetRule
+            program << [ :define_var, {
+              name: rule.variable_name,
+              expression: compile_expression(rule.expression)
             } ]
           when DimensionRule
             program << [ :evaluate_and_apply_classes, {
               condition: compile_expression(rule.condition),
-              variants: rule.variants.each_with_object({}) do |v, h|
-                h[v.value] = v.classes
-              end
+              variants: rule.variants.each_with_object({}) { |v, h| h[v.value] = v.classes }
             } ]
           when BindingRule
             program << [ :evaluate_and_apply_attribute, {
@@ -112,9 +102,7 @@ module Tailmix
 
       def compile_plugins(nodes)
         return nil if nodes.nil? || nodes.empty?
-
         nodes.each_with_object({}) do |node, h|
-          # snake_case -> camelCase (auto_focus -> autoFocus)
           camelized_name = node.name.to_s.gsub(/_([a-z])/) { $1.upcase }
           h[camelized_name] = node.options
         end

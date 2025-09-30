@@ -8,8 +8,15 @@ const ExpressionExecutor = {
         const [op, ...args] = expression;
         switch (op) {
             case 'state':
-            case 'item':
             case 'this':
+            case 'var':
+                return args.reduce((obj, key) => obj?.[key], context.vars?.[args.shift()]);
+            case 'find':
+                const collection = this.evaluate(args[0], context);
+                const query = this.evaluate(args[1], context);
+                return collection?.find(item =>
+                    Object.entries(query).every(([key, value]) => item[key] === value)
+                );
             case 'param':
                 return args.reduce((obj, key) => obj?.[key], context[op]);
             case 'eq':
@@ -55,6 +62,8 @@ export class Executor {
         switch (opcode) {
             case 'setup_context':
                 return this.applySetupContext(context, set, args);
+            case 'define_var':
+                return { context: this.applyDefineVar(context, args), attributeSet: set };
             case 'evaluate_and_apply_classes':
                 return { context, attributeSet: this.applyClasses(context, set, args) };
             case 'evaluate_and_apply_attribute':
@@ -88,6 +97,12 @@ export class Executor {
         const newContext = { ...context, item, this: { key: { [keyName]: item } } };
 
         return { context: newContext, attributeSet: newSet };
+    }
+
+    applyDefineVar(context, args) {
+        const value = ExpressionExecutor.evaluate(args.expression, context);
+        const newVars = { ...(context.vars || {}), [args.name]: value };
+        return { ...context, vars: newVars };
     }
 
     applyClasses(context, set, args) {
