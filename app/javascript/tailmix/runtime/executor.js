@@ -57,6 +57,10 @@ export class Executor {
                 return this.applySetupContext(context, set, args);
             case 'evaluate_and_apply_classes':
                 return { context, attributeSet: this.applyClasses(context, set, args) };
+            case 'evaluate_and_apply_attribute':
+                return { context, attributeSet: this.applyAttribute(context, set, args) };
+            case 'setup_model_binding':
+                return { context, attributeSet: this.applyModelBinding(context, set, args) };
             // ... TODO: other instructions
         }
         return { context, attributeSet: set };
@@ -93,5 +97,34 @@ export class Executor {
 
         const newClasses = new Set([...set.classes, ...classesToApply]);
         return { ...set, classes: newClasses };
+    }
+
+    applyAttribute(context, set, args) {
+        const value = ExpressionExecutor.evaluate(args.expression, context);
+        if (value === null || value === undefined) return set;
+
+        const newOther = { ...set.other };
+        if (args.is_content) {
+            newOther.content = value;
+        } else {
+            newOther[args.attribute] = value;
+        }
+        return { ...set, other: newOther };
+    }
+
+    applyModelBinding(context, set, args) {
+        const attributeName = args.target[1]; // ['this', 'value'] -> 'value'
+        const stateKey = args.state[1];      // ['state', 'type']  -> 'type'
+        const value = ExpressionExecutor.evaluate(args.state, context);
+
+        const newOther = { ...set.other, [attributeName]: value };
+        const newData = {
+            ...set.data,
+            'data-tailmix-model-attr': attributeName,
+            'data-tailmix-model-state': stateKey,
+            'data-tailmix-model-event': args.options?.on || 'input'
+        };
+
+        return { ...set, other: newOther, data: newData };
     }
 }

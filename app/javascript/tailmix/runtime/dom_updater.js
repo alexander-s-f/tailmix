@@ -1,12 +1,44 @@
-// app/javascript/tailmix/runtime/dom_updater.js
+const defaultUpdateStrategy = (element, key, value) => {
+    if (key === 'content') {
+        if (element.textContent !== String(value)) {
+            element.textContent = String(value);
+        }
+        return;
+    }
+
+    // Updating both the attribute and the property for standard elements
+    if (element.getAttribute(key) !== String(value)) {
+        element.setAttribute(key, String(value));
+    }
+    if (element[key] !== value) {
+        element[key] = value;
+    }
+};
+
+const selectUpdateStrategy = (element, key, value) => {
+    // For <select>, the most important thing is to update the .value property.
+    // This will reliably change the selected <option>.
+    if (key === 'value') {
+        console.log('Select value:', value);
+        console.log(element);
+        if (element.value !== value) {
+            element.value = value;
+        }
+    }
+    // We still set the attribute for CSS selectors ([value="..."]) and for debugging
+    if (element.getAttribute(key) !== String(value)) {
+        element.setAttribute(key, String(value));
+    }
+};
+
+const STRATEGIES = {
+    'SELECT': selectUpdateStrategy,
+    'INPUT': defaultUpdateStrategy,
+    'TEXTAREA': defaultUpdateStrategy,
+    'DEFAULT': defaultUpdateStrategy
+};
 
 export const DOMUpdater = {
-    /**
-     * Applies the target set of attributes to the DOM element.
-     * @param {HTMLElement} element - The target DOM element.
-     * @param {Object} attributeSet - An object with attributes from the Executor.
-     * @param {Array} baseClasses - The base classes of the element from the definition.
-     */
     apply(element, attributeSet, baseClasses = []) {
         // Updating Classes
         const targetClasses = attributeSet.classes;
@@ -29,9 +61,11 @@ export const DOMUpdater = {
             }
         }
 
-        // Updating the remaining attributes (value, hidden, type, etc.)
+        // -----------------------------------------------------------
         for (const [key, value] of Object.entries(attributeSet.other)) {
-            // ... TODO: logic for `value`, `hidden`, etc. will be here
+            const tagName = element.tagName.toUpperCase();
+            const strategy = STRATEGIES[tagName] || STRATEGIES['DEFAULT'];
+            strategy(element, key, value);
         }
     }
 };

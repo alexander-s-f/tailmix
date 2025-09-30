@@ -51,7 +51,8 @@ const OPERATIONS = {
         const stateKey = extractStateKey(args[0]);
         if (!stateKey) return;
         const by = args[1] ? await interpreter.evaluate(args[1], context) : 1;
-        interpreter.component.update({ [stateKey]: (interpreter.component.state[stateKey] || 0) + by });
+        const currentValue = interpreter.component.state[stateKey] || 0;
+        interpreter.component.update({ [stateKey]: currentValue + by });
     },
 
     // --- Value Expressions ---

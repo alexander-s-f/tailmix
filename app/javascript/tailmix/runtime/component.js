@@ -16,10 +16,14 @@ export class Component {
 
         this.isUpdateQueued = false;
 
-        this.triggerManager.bindActions();
+        this.triggerManager.bind();
         this.performUpdate();
 
         console.log(`Tailmix component "${this.definition.name || 'Unnamed'}" initialized.`);
+    }
+
+    get state() {
+        return this._state;
     }
 
     update(newState) {
