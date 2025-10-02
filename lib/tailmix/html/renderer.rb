@@ -37,6 +37,11 @@ module Tailmix
         final_hash
       end
 
+      # This is what we need for `bind :text` to work on the server.
+      def content
+        @set.other[:content]
+      end
+
       private
 
       def render_data_map(prefix, hash, accumulator = {})

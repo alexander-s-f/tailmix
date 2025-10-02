@@ -5,42 +5,8 @@ require_relative "helpers"
 module Tailmix
   module AST
     # Contains a full set of standard commands and helpers for DSL.
-    # This module can be included in any Builder (ActionBuilder, etc.).
     module StandardLibrary
       include Helpers
-
-      # --- Helpers for expressions ---
-      def state
-        ExpressionBuilder.new(:state)
-      end
-
-      def item
-        ExpressionBuilder.new(:item)
-      end
-
-      def this
-        ExpressionBuilder.new(:this)
-      end
-
-      def event
-        ExpressionBuilder.new(:event)
-      end
-
-      def param
-        ExpressionBuilder.new(:param)
-      end
-
-      def payload
-        ExpressionBuilder.new(:payload)
-      end
-
-      # def var
-      #   ExpressionBuilder.new(:var)
-      # end
-
-      def var(variable_name)
-        ExpressionBuilder.new(:var, [variable_name])
-      end
 
       # --- Commands ---
       def set(property_expr, value_expr)
@@ -67,10 +33,8 @@ module Tailmix
       end
 
       def if?(condition, &block)
-        # For if/unless we need a nested ActionBuilder
         builder = ActionBuilder.new
         builder.instance_eval(&block)
-
         add_instruction(:if, [ resolve_ast(condition), builder.instructions ])
       end
 

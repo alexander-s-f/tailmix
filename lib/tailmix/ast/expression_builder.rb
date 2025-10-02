@@ -8,8 +8,8 @@ module Tailmix
     class ExpressionBuilder
       include Helpers
 
-      def initialize(source, path = [])
-        @node = Property.new(source: source, path: path)
+      def initialize(initial_path = [])
+        @node = Property.new(path: Array(initial_path))
       end
 
       # --- Operators ---
@@ -31,10 +31,11 @@ module Tailmix
       # ... gt, lt, and, or ...
 
       # --- Access to properties ---
-      def method_missing(name)
-        # Add the key to the path, only if the current node is a Property
-        raise "Cannot access property `#{name}` on a complex expression." unless @node.is_a?(Property)
+      def method_missing(name, *args)
+        # If args are passed, it's a method call on the object, like `find`
+        return super if name == :to_ary || !args.empty?
 
+        raise "Cannot access property `#{name}` on a complex expression." unless @node.is_a?(Property)
         @node.path << name.to_s.chomp("?").to_sym
         self
       end

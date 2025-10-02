@@ -32,11 +32,17 @@ module Tailmix
 
       def compile_elements(nodes)
         nodes.map do |node|
+          # Collect all possible variant classes for an element into a flat, unique array.
+          all_variant_classes = node.rules.grep(DimensionRule).flat_map do |rule|
+            rule.variants.flat_map(&:classes)
+          end.uniq
+
           Element.new(
             name: node.name,
             base_classes: node.base_classes,
             default_attributes: node.default_attributes,
-            rules: compile_rules(node.rules)
+            rules: compile_rules(node.rules),
+            variant_classes: all_variant_classes
           )
         end
       end
@@ -44,7 +50,7 @@ module Tailmix
       def compile_expression(node)
         case node
         when Value then node.value
-        when Property then [ node.source, *node.path ]
+        when Property then [ :property, *node.path ] # CHANGED: Compile Property to [:property, :var_name, :path, ...]
         when BinaryOperation then [ node.operator, compile_expression(node.left), compile_expression(node.right) ]
         when UnaryOperation then [ node.operator, compile_expression(node.operand) ]
         when FunctionCall then [ node.name, *node.args.map { |arg| compile_expression(arg) } ]

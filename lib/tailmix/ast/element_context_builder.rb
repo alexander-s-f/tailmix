@@ -3,56 +3,39 @@
 module Tailmix
   module AST
     class ElementContextBuilder
-      include StandardLibrary # state, item, this
+      include StandardLibrary
 
       def initialize(element_node, component_builder)
         @element_node = element_node
         @component_builder = component_builder
       end
 
-      def key(name, **kwargs)
-        to = kwargs.fetch(:to)
-        on = kwargs.fetch(:on)
-
-        @element_node.rules << KeyBindingRule.new(name: name, collection: to.to_ast, lookup: on.to_ast)
-      end
-
-      def let(name, expression, **options)
-        # expression here is already a ready AST node (for example, CollectionOperation),
-        # which was returned by the `.find` method
-        @element_node.rules << LetRule.new(variable_name: name, expression: expression, options: options)
+      def let(name, expression)
+        @element_node.rules << LetRule.new(variable_name: name, expression: expression)
       end
 
       def bind(target, to:)
-        expression_ast = resolve_ast(to)
-        target_ast = resolve_ast(target)
+        # Simplified bind logic
+        attribute_name = target.is_a?(ExpressionBuilder) ? target.to_ast.path.first : target
+        is_content = [ :content, :text, :html ].include?(attribute_name)
 
-        if target_ast.is_a?(AST::Property) && target_ast.source == :this && [:content, :text, :html].include?(target_ast.path.first)
-          type = target_ast.path.first
-          @element_node.rules << BindingRule.new(attribute: type, expression: expression_ast, is_content: true)
-        else
-          attribute_name = target_ast.is_a?(AST::Property) ? target_ast.path.first : target_ast.value
-          @element_node.rules << BindingRule.new(attribute: attribute_name, expression: expression_ast, is_content: false)
-        end
+        @element_node.rules << BindingRule.new(
+          attribute: attribute_name,
+          expression: resolve_ast(to),
+          is_content: is_content
+        )
       end
 
       def dimension(on:, &block)
-        condition_ast = resolve_ast(on)
-
-        builder = DimensionBuilder.new(condition_ast)
+        builder = DimensionBuilder.new(resolve_ast(on))
         builder.instance_eval(&block)
         @element_node.rules << builder.dimension_rule
       end
 
-      def on(event, to: nil, &block)
-        action_name, inline_action = nil, nil
-        if block
-          action_name = :"#{@element_node.name}_#{event}_handler"
-          action_builder = ActionBuilder.new; action_builder.instance_eval(&block)
-          inline_action = Action.new(name: action_name, instructions: action_builder.instructions)
-        else
-          action_name = to
-        end
+      def on(event, &block)
+        action_name = :"#{@element_node.name}_#{event}_handler"
+        action_builder = ActionBuilder.new; action_builder.instance_eval(&block)
+        inline_action = Action.new(name: action_name, instructions: action_builder.instructions)
         @element_node.rules << EventHandlerRule.new(event: event, action_name: action_name, inline_action: inline_action)
       end
 
@@ -64,8 +47,15 @@ module Tailmix
         )
       end
 
-      def method_missing(name, value)
-        @element_node.default_attributes[name.to_sym] = value
+      # Intercepts calls to undefined methods like `active_tab` or `current_tab`
+      # and treats them as variable access expressions.
+      def method_missing(name, *args)
+        return super unless args.empty?
+        ExpressionBuilder.new(name)
+      end
+
+      def respond_to_missing?(_name, include_private = false)
+        true
       end
     end
   end

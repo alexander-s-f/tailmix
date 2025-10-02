@@ -15,4 +15,3 @@ module Tailmix
     end
   end
 end
-

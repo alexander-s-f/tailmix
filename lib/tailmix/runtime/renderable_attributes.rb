@@ -3,12 +3,15 @@
 module Tailmix
   module Runtime
     class RenderableAttributes < Hash
-      def initialize(initial_hash, component_name:, state_payload:, id:)
+      attr_reader :content
+
+      def initialize(initial_hash, component_name:, state_payload:, id:, content: nil)
         super()
         merge!(initial_hash)
         @component_name = component_name
         @state_payload = state_payload
         @id = id
+        @content = content
       end
 
       def component
@@ -20,7 +23,8 @@ module Tailmix
           ).compact,
           component_name: @component_name,
           state_payload: @state_payload,
-          id: @id
+          id: @id,
+          content: @content
         )
       end
     end

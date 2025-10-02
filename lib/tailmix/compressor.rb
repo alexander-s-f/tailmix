@@ -9,38 +9,52 @@ module Tailmix
     end
 
     def initialize(definitions)
-      @definitions = definitions
+      @definitions = Marshal.load(Marshal.dump(definitions))
       @class_dictionary = {}
       @next_class_id = 0
     end
 
     def compress
-      # Cloning to avoid modifying the original object in the Registry
-      compressed_definitions = deep_clone(@definitions)
-
-      # Recursively find all classes and build a dictionary
-      traverse_and_build_dictionary(compressed_definitions)
+      traverse_and_replace(@definitions)
 
       {
-        dictionary: @class_dictionary.invert, # { 0 => "class-a", 1 => "class-b" }
-        components: compressed_definitions
+        dictionary: @class_dictionary.invert,
+        components: @definitions
       }
     end
 
     private
 
-    def traverse_and_build_dictionary(node)
+    def traverse_and_replace(node)
       case node
       when Hash
+        # This part is correct, it traverses hashes (like the main definition object)
         node.each do |key, value|
-          if (key == :classes || key == :base_classes) && value.is_a?(Array)
-            node[key] = value.map { |cls| get_class_id(cls) }
+          if key == :variants && value.is_a?(Hash)
+            value.transform_values! do |classes|
+              classes.map { |cls| get_class_id(cls) }
+            end
           else
-            traverse_and_build_dictionary(value)
+            traverse_and_replace(value)
           end
         end
       when Array
-        node.each { |item| traverse_and_build_dictionary(item) }
+        # This part is correct, it traverses arrays
+        node.each { |item| traverse_and_replace(item) }
+        # This is the missing piece. We need to handle our AST nodes (which are Structs).
+      when Struct
+        # For Structs, we iterate over their members to find our class arrays.
+        node.each_pair do |key, value|
+          if [ :base_classes, :variant_classes ].include?(key) && value.is_a?(Array)
+            # Modify the struct's value directly
+            node[key] = value.map { |cls| get_class_id(cls) }
+          else
+            # Recurse into other members
+            traverse_and_replace(value)
+          end
+        end
+      else
+        puts "Compressing class: #{node.class} - node: #{node}"
       end
     end
 
@@ -50,10 +64,6 @@ module Tailmix
         @next_class_id += 1
         id
       end
-    end
-
-    def deep_clone(obj)
-      Marshal.load(Marshal.dump(obj))
     end
   end
 end

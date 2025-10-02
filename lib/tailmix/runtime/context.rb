@@ -32,13 +32,14 @@ module Tailmix
         element_def = @definition.elements.find { |el| el.name == element_name }
         raise "Element `#{element_name}` not found" unless element_def
 
-        final_attributes_hash = Executor.call(element_def, @state, self, with)
+        final_attributes_hash, content = Executor.call(element_def, @state, self, with)
 
         RenderableAttributes.new(
           final_attributes_hash,
           component_name: @component_name,
           state_payload: @state_payload,
-          id: @id
+          id: @id,
+          content: content # Pass content to the initializer
         )
       end
 
