@@ -33,9 +33,13 @@ module Tailmix
       def compile_elements(nodes)
         nodes.map do |node|
           # Collect all possible variant classes for an element into a flat, unique array.
-          all_variant_classes = node.rules.grep(DimensionRule).flat_map do |rule|
+          # Now includes classes from both `dimension` and `compound_variant`.
+          dimension_classes = node.rules.grep(DimensionRule).flat_map do |rule|
             rule.variants.flat_map(&:classes)
-          end.uniq
+          end
+          compound_classes = node.rules.grep(CompoundVariantRule).flat_map(&:classes)
+
+          all_variant_classes = (dimension_classes + compound_classes).uniq
 
           Element.new(
             name: node.name,
@@ -83,6 +87,11 @@ module Tailmix
             program << [ :evaluate_and_apply_classes, {
               condition: compile_expression(rule.condition),
               variants: rule.variants.each_with_object({}) { |v, h| h[v.value] = v.classes }
+            } ]
+          when CompoundVariantRule
+            program << [ :apply_compound_variant, {
+              conditions: rule.conditions.transform_values { |v| compile_expression(v) },
+              classes: rule.classes
             } ]
           when BindingRule
             program << [ :evaluate_and_apply_attribute, {

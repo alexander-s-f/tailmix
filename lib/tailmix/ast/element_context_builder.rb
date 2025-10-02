@@ -2,6 +2,19 @@
 
 module Tailmix
   module AST
+
+    # A small, temporary builder for the `compound_variant do ... end` block
+    class CompoundVariantBuilder
+      attr_reader :collected_classes
+      def initialize
+        @collected_classes = []
+      end
+
+      def classes(class_string)
+        @collected_classes.concat(class_string.to_s.split)
+      end
+    end
+
     class ElementContextBuilder
       include StandardLibrary
 
@@ -45,6 +58,20 @@ module Tailmix
           state_expression: resolve_ast(to),
           options: options
         )
+      end
+
+      def compound_variant(on:, &block)
+        builder = CompoundVariantBuilder.new
+        builder.instance_eval(&block)
+
+        # The `on` hash needs to be resolved into proper AST expressions
+        conditions_ast = on.transform_values { |value| resolve_ast(value) }
+
+        rule = CompoundVariantRule.new(
+          conditions: conditions_ast,
+          classes: builder.collected_classes
+        )
+        @element_node.rules << rule
       end
 
       # Intercepts calls to undefined methods like `active_tab` or `current_tab`

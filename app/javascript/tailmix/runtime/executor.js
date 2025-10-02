@@ -37,6 +37,8 @@ export class Executor {
             }
             case 'evaluate_and_apply_classes':
                 return this.applyClasses(set, args, evaluator);
+            case 'apply_compound_variant':
+                return this.applyCompoundVariant(set, args, evaluator);
             case 'evaluate_and_apply_attribute':
                 return this.applyAttribute(set, args, evaluator);
             case 'setup_model_binding':
@@ -52,6 +54,23 @@ export class Executor {
         const classesToApply = args.variants[value];
         if (!classesToApply || classesToApply.length === 0) return set;
         const newClasses = new Set([...set.classes, ...classesToApply]);
+        return { ...set, classes: newClasses };
+    }
+
+    applyCompoundVariant(set, args, evaluator) {
+        const { conditions, classes } = args;
+
+        const allConditionsMet = Object.entries(conditions).every(([stateKey, expectedValueExpr]) => {
+            const currentValue = evaluator.scope.find(stateKey);
+            const expectedValue = evaluator.evaluate(expectedValueExpr);
+            return String(currentValue) === String(expectedValue);
+        });
+
+        if (!allConditionsMet) {
+            return set;
+        }
+
+        const newClasses = new Set([...set.classes, ...classes]);
         return { ...set, classes: newClasses };
     }
 

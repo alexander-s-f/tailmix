@@ -54,6 +54,8 @@ module Tailmix
           set
         when :evaluate_and_apply_classes
           apply_classes(scope, set, args)
+        when :apply_compound_variant
+          apply_compound_variant(scope, set, args)
         when :evaluate_and_apply_attribute
           apply_attribute(scope, set, args)
         when :attach_event_handler
@@ -107,6 +109,23 @@ module Tailmix
           "tailmix-model-event": args.dig(:options, :on) || "input"
         )
         set.merge(other: new_other, data: new_data)
+      end
+
+      def apply_compound_variant(scope, set, args)
+        conditions = args[:conditions]
+        classes_to_apply = args[:classes]
+
+        # Check if all conditions for the compound variant are met
+        all_conditions_met = conditions.all? do |state_key, expected_value_expr|
+          current_value = scope.find(state_key)
+          expected_value = ExpressionExecutor.call(expected_value_expr, scope)
+          current_value.to_s == expected_value.to_s
+        end
+
+        return set unless all_conditions_met
+
+        # If conditions are met, merge the classes
+        set.merge(classes: set.classes.dup.merge(classes_to_apply))
       end
     end
   end
