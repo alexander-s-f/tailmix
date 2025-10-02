@@ -37,14 +37,19 @@ const STRATEGIES = {
 };
 
 export const DOMUpdater = {
-    apply(element, attributeSet, baseClasses = []) {
+    apply(element, attributeSet, baseClasses = [], variantClasses = []) {
         // Updating Classes
         const targetClasses = attributeSet.classes;
-        element.classList.forEach(cls => {
-            if (!targetClasses.has(cls) && !baseClasses.includes(cls)) {
+
+        // 1. Remove all previously set variant classes that are not in the new target set.
+        // This prevents class accumulation from different states.
+        variantClasses.forEach(cls => {
+            if (!targetClasses.has(cls) && element.classList.contains(cls)) {
                 element.classList.remove(cls);
             }
         });
+
+        // 2. Add all target classes that are not already present.
         targetClasses.forEach(cls => {
             if (!element.classList.contains(cls)) {
                 element.classList.add(cls);

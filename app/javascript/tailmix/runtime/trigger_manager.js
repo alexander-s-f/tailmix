@@ -32,11 +32,17 @@ export class TriggerManager {
             if (!eventName || !actionName) return;
 
             const actionDef = this.component.definition.actions.find(a => a.name === actionName);
-            if (!actionDef?.instructions) return;
+            // Find the definition for the element that has the action attached.
+            const elementDef = this.component.definition.elements.find(e => e.name === element.dataset.tailmixElement);
+
+            if (!actionDef?.instructions || !elementDef) return;
+
+            const componentScope = this.component.scope;
 
             element.addEventListener(eventName, (event) => {
-                const context = { event, payload, param: payload };
-                this.actionInterpreter.run(actionDef.instructions, context);
+                const context = { event, payload };
+                // Pass the element's definition to the interpreter.
+                this.actionInterpreter.run(actionDef.instructions, context, componentScope, elementDef);
             });
         });
     }
@@ -44,9 +50,9 @@ export class TriggerManager {
     bindModels() {
         const modelElements = this.component.element.querySelectorAll('[data-tailmix-model-state]');
         modelElements.forEach(element => {
-            const attribute = element.dataset.tailmixModelAttr;     // 'value'
-            const stateKey = element.dataset.tailmixModelState;    // 'value'
-            const eventName = element.dataset.tailmixModelEvent || 'input'; // 'input'
+            const attribute = element.dataset.tailmixModelAttr;
+            const stateKey = element.dataset.tailmixModelState;
+            const eventName = element.dataset.tailmixModelEvent || 'input';
 
             if (!attribute || !stateKey) return;
 
