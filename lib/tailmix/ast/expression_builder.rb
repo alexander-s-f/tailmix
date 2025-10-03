@@ -9,34 +9,47 @@ module Tailmix
       include Helpers
 
       def initialize(source, path = [])
-        @node = Property.new(source: source, path: path)
+        # @node will be nil in "Path Building Mode"
+        # and will hold an AST node in "Expression Mode"
+        @node = nil
+        @initial_property = Property.new(source: source, path: path)
       end
 
-      # --- Operators ---
-      def eq(other)
-        @node = BinaryOperation.new(operator: :eq, left: @node, right: resolve_ast(other))
-        self
-      end
+      # --- Logical Operators ---
+      def eq(other); binary_op(:eq, other); end
+      def not?; unary_op(:not); end
+      def gt(other); binary_op(:gt, other); end
+      def lt(other); binary_op(:lt, other); end
+      def gte(other); binary_op(:gte, other); end
+      def lte(other); binary_op(:lte, other); end
 
-      def not?
-        @node = UnaryOperation.new(operator: :not, operand: @node)
-        self
-      end
+      # --- Arithmetic Operators ---
+      def add(other); binary_op(:add, other); end
+      def subtract(other); binary_op(:sub, other); end
+      def multiply(other); binary_op(:mul, other); end
+      def divide(other); binary_op(:div, other); end
 
-      def find(args)
-        # `find` is a terminal method, it returns a completed AST node, not `self`
-        CollectionOperation.new(collection: to_ast, operation: :find, args: resolve_ast(args))
-      end
-
-      # ... gt, lt, and, or ...
+      # --- Collection Operations ---
+      def find(args); collection_op(:find, args); end
+      def size; collection_op(:size); end
+      def sum(prop = nil); collection_op(:sum, prop); end
+      def avg(prop = nil); collection_op(:avg, prop); end
+      def min(prop = nil); collection_op(:min, prop); end
+      def max(prop = nil); collection_op(:max, prop); end
 
       # --- Access to properties ---
       def method_missing(name, *args)
-        # If args are passed, it's a method call on the object, like `find`
         return super if name == :to_ary || !args.empty?
 
-        raise "Cannot access property `#{name}` on a complex expression." unless @node.is_a?(Property)
-        @node.path << name.to_s.chomp("?").to_sym
+        # This is the core of the mode switch.
+        # If @node is not nil, we are in "Expression Mode" and can't add properties.
+        if @node
+          raise NoMethodError, "Cannot access property `#{name}` on a complex expression. " \
+            "Properties can only be accessed on direct state/param/var references."
+        end
+
+        # "Path Building Mode": just append to the path.
+        @initial_property.path << name.to_s.chomp("?").to_sym
         self
       end
 
@@ -44,9 +57,39 @@ module Tailmix
         true
       end
 
-      # Converts the builder into a final AST node
       def to_ast
-        @node
+        # If we are in Expression Mode, return the built node.
+        # Otherwise, return the simple property reference.
+        @node || @initial_property
+      end
+
+      private
+
+      def switch_to_expression_mode
+        # The first time an operator is called, we use the current property
+        # as the initial state of the expression.
+        @node ||= @initial_property
+      end
+
+      def binary_op(op, other)
+        switch_to_expression_mode
+        @node = BinaryOperation.new(operator: op, left: @node, right: resolve_ast(other))
+        self
+      end
+
+      def unary_op(op)
+        switch_to_expression_mode
+        @node = UnaryOperation.new(operator: op, operand: @node)
+        self
+      end
+
+      def collection_op(op, args = nil)
+        switch_to_expression_mode
+        # Collection ops are terminal, they don't return self but a final node.
+        # Let's change this to be chainable where it makes sense.
+        # For now, let's keep it simple and chainable.
+        @node = CollectionOperation.new(collection: @node, operation: op, args: resolve_ast(args))
+        self
       end
     end
   end

@@ -18,21 +18,17 @@ module Tailmix
         case op
         when :state, :param, :this, :var
           evaluate_property(op, args)
-        when :find
-          collection = execute(args[0])
-          query = execute(args[1])
-          return nil unless collection.is_a?(Array)
-
-          # Make the find operation indifferent to string vs. symbol keys.
-          collection.find do |item|
-            query.all? do |key, value|
-              item_value = item[key.to_sym] || item[key.to_s]
-              item_value.to_s == value.to_s
-            end
-          end
+        when :find, :sum, :avg, :min, :max, :size # Was :count
+          evaluate_collection_operation(op, args)
         when :eq then execute(args[0]) == execute(args[1])
         when :gt then execute(args[0]) > execute(args[1])
         when :lt then execute(args[0]) < execute(args[1])
+        when :gte then execute(args[0]) >= execute(args[1])
+        when :lte then execute(args[0]) <= execute(args[1])
+        when :add then execute(args[0]) + execute(args[1])
+        when :sub then execute(args[0]) - execute(args[1])
+        when :mul then execute(args[0]) * execute(args[1])
+        when :div then execute(args[0]) / execute(args[1])
         when :not then !execute(args[0])
         else
           raise "Unknown expression operator: #{op}"
@@ -41,24 +37,50 @@ module Tailmix
 
       private
 
-      def evaluate_property(source, path)
-        # For `:var`, the path itself contains the variable name.
-        if source == :var
-          var_name = path.first
-          property_path = path.slice(1..-1)
-          value = @scope.find(var_name)
-        else
-          # For `:state`, `:param`, etc., the source IS the "variable".
-          value = @scope.find(source)
-          property_path = path
+      def evaluate_collection_operation(op, args)
+        collection = execute(args[0])
+        return nil unless collection.is_a?(Array)
+
+        case op
+        when :find
+          query = execute(args[1])
+          collection.find do |item|
+            query.all? do |key, value|
+              item_value = item[key.to_sym] || item[key.to_s]
+              item_value.to_s == value.to_s
+            end
+          end
+        when :size # Was :count
+          collection.size
+        when :sum
+          prop = execute(args[1])
+          values = prop ? collection.map { |item| item[prop.to_sym] } : collection
+          values.compact.sum
+        when :avg
+          prop = execute(args[1])
+          values = prop ? collection.map { |item| item[prop.to_sym] } : collection
+          return 0 if values.empty?
+          values.compact.sum / values.size.to_f
+        when :min
+          prop = execute(args[1])
+          values = prop ? collection.map { |item| item[prop.to_sym] } : collection
+          values.compact.min
+        when :max
+          prop = execute(args[1])
+          values = prop ? collection.map { |item| item[prop.to_sym] } : collection
+          values.compact.max
         end
+      end
+
+      def evaluate_property(source, path)
+        value = (source == :var) ? @scope.find(path.first) : @scope.find(source)
+        property_path = (source == :var) ? path.slice(1..-1) : path
 
         return value if property_path.empty?
         return nil if value.nil?
 
         property_path.reduce(value) do |obj, key|
-          break nil if obj.nil? # Stop if any intermediate value is nil
-
+          break nil if obj.nil?
           if obj.is_a?(Hash)
             obj[key.to_sym] || obj[key.to_s]
           elsif obj.respond_to?(key)

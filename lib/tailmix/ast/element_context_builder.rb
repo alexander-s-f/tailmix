@@ -24,7 +24,7 @@ module Tailmix
       end
 
       def let(name, expression)
-        @element_node.rules << LetRule.new(variable_name: name, expression: expression)
+        @element_node.rules << LetRule.new(variable_name: name, expression: resolve_ast(expression))
       end
 
       def bind(target, to:)

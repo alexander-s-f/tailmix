@@ -20,7 +20,6 @@ module Tailmix
         ExpressionBuilder.new(:param)
       end
 
-      # For `let` variables, we'll use a specific helper
       def var(variable_name)
         ExpressionBuilder.new(:var, [variable_name])
       end
@@ -36,6 +35,22 @@ module Tailmix
 
       def increment(property_expr, by: 1)
         add_instruction(:increment, [ property_expr.to_ast, resolve_ast(by) ])
+      end
+
+      def decrement(property_expr, by: 1)
+        add_instruction(:decrement, [ property_expr.to_ast, resolve_ast(by) ])
+      end
+
+      def push(array_expr, value_expr)
+        add_instruction(:push, [ array_expr.to_ast, resolve_ast(value_expr) ])
+      end
+
+      def delete(array_expr, value_expr)
+        add_instruction(:delete, [ array_expr.to_ast, resolve_ast(value_expr) ])
+      end
+
+      def dispatch(event_name, detail: {})
+        add_instruction(:dispatch, [ resolve_ast(event_name), resolve_ast(detail) ])
       end
 
       def log(*args)
