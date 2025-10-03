@@ -74,11 +74,16 @@ module Tailmix
         @element_node.rules << rule
       end
 
-      # Intercepts calls to undefined methods like `active_tab` or `current_tab`
-      # and treats them as variable access expressions.
-      def method_missing(name, *args)
-        return super unless args.empty?
-        ExpressionBuilder.new(name)
+      def method_missing(name, *args, &block)
+        # If called with arguments (e.g., `placeholder "text"`), it's an attribute.
+        unless args.empty?
+          attribute_name = name.to_s.chomp("=").to_sym
+          @element_node.default_attributes[attribute_name] = args.first
+          return
+        end
+
+        # Any other call is an error.
+        super
       end
 
       def respond_to_missing?(_name, include_private = false)

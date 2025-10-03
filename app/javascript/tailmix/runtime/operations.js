@@ -1,45 +1,53 @@
 import {ExpressionEvaluator} from "./expression_evaluator";
 
 export const OPERATIONS = {
-    set: (interpreter, args, scope) => {
-        const propertyExpr = args[0];
+    set: (interpreter, args, scope, runtimeContext) => {
+        const statePropertyExpr = args[0]; // This is the full expression, e.g., ['state', 'type']
         const valueExpr = args[1];
-        const stateKey = propertyExpr[1];
-        if (!stateKey) return;
+
+        // We can't just take the key, we need to know the full path.
+        // For now, we assume `set` only works on top-level state keys.
+        const stateKey = statePropertyExpr[1];
+        if (statePropertyExpr[0] !== 'state' || !stateKey) {
+            console.warn("Tailmix: `set` operation currently only supports direct state properties (e.g., `state.foo`).");
+            return;
+        }
 
         const evaluator = new ExpressionEvaluator(scope);
         const value = evaluator.evaluate(valueExpr);
 
         if (value === undefined) {
-            console.warn(`Tailmix: 'set' operation for '${stateKey}' received 'undefined'. Aborting state update.`);
+            console.warn(`Tailmix: 'set' for '${stateKey}' received 'undefined'. Aborting.`);
             return;
         }
+        runtimeContext.component.update({ [stateKey]: value });
+    },
 
-        interpreter.component.update({ [stateKey]: value });
+    toggle: (interpreter, args, scope, runtimeContext) => {
+        const statePropertyExpr = args[0];
+        const stateKey = statePropertyExpr[1];
+        if (statePropertyExpr[0] !== 'state' || !stateKey) return;
+
+        const evaluator = new ExpressionEvaluator(scope);
+        const currentValue = evaluator.evaluate(statePropertyExpr);
+
+        runtimeContext.component.update({ [stateKey]: !currentValue });
     },
-    toggle: (interpreter, args, scope) => {
-        const stateKey = args[0][1]; // ['property', 'open'] -> 'open'
-        if (!stateKey) return;
-        interpreter.component.update({ [stateKey]: !scope.find(stateKey) });
-    },
-    increment: (interpreter, args, scope) => {
-        const stateKey = args[0][1]; // ['property', 'count'] -> 'count'
-        if (!stateKey) return;
+
+    increment: (interpreter, args, scope, runtimeContext) => {
+        const statePropertyExpr = args[0]; // e.g., ['state', 'count']
+        const stateKey = statePropertyExpr[1];
+        if (statePropertyExpr[0] !== 'state' || !stateKey) return;
 
         const evaluator = new ExpressionEvaluator(scope);
         const by = args[1] ? evaluator.evaluate(args[1]) : 1;
-        const currentValue = scope.find(stateKey) || 0;
-        interpreter.component.update({ [stateKey]: currentValue + by });
-    },
-    decrement: (interpreter, args, scope) => {
-        const stateKey = args[0][1]; // ['property', 'count'] -> 'count'
-        if (!stateKey) return;
 
-        const evaluator = new ExpressionEvaluator(scope);
-        const by = args[1] ? evaluator.evaluate(args[1]) : 1;
-        const currentValue = scope.find(stateKey) || 0;
-        interpreter.component.update({ [stateKey]: currentValue - by });
+        // Correctly evaluate `state.count` to get its current value
+        const currentValue = evaluator.evaluate(statePropertyExpr) || 0;
+
+        runtimeContext.component.update({ [stateKey]: currentValue + by });
     },
+
     log: (interpreter, args, scope) => {
         const evaluator = new ExpressionEvaluator(scope);
         const resolvedArgs = args.map(arg => evaluator.evaluate(arg));

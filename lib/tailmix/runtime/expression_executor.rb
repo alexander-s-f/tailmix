@@ -16,8 +16,8 @@ module Tailmix
         return expr unless expr.is_a?(Array)
         op, *args = expr
         case op
-        when :property
-          evaluate_property(args)
+        when :state, :param, :this, :var
+          evaluate_property(op, args)
         when :find
           collection = execute(args[0])
           query = execute(args[1])
@@ -41,14 +41,21 @@ module Tailmix
 
       private
 
-      def evaluate_property(path)
-        var_name = path.first
-        property_path = path.slice(1..-1)
+      def evaluate_property(source, path)
+        # For `:var`, the path itself contains the variable name.
+        if source == :var
+          var_name = path.first
+          property_path = path.slice(1..-1)
+          value = @scope.find(var_name)
+        else
+          # For `:state`, `:param`, etc., the source IS the "variable".
+          value = @scope.find(source)
+          property_path = path
+        end
 
-        value = @scope.find(var_name)
-        return nil if value.nil? # Return nil early if variable not found
+        return value if property_path.empty?
+        return nil if value.nil?
 
-        # Gracefully traverse the path, indifferent to string/symbol keys.
         property_path.reduce(value) do |obj, key|
           break nil if obj.nil? # Stop if any intermediate value is nil
 

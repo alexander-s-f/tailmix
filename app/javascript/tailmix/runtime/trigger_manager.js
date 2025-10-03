@@ -2,6 +2,7 @@ export class TriggerManager {
     constructor(component) {
         this.component = component;
         this.actionInterpreter = component.actionInterpreter;
+        this.runtimeContext = component.runtimeContext;
     }
 
     bind() {
@@ -37,22 +38,22 @@ export class TriggerManager {
 
             if (!actionDef?.instructions || !elementDef) return;
 
-            const componentScope = this.component.scope;
+            const runtimeContext = this.runtimeContext;
 
             element.addEventListener(eventName, (event) => {
                 const context = { event, payload };
                 // Pass the element's definition to the interpreter.
-                this.actionInterpreter.run(actionDef.instructions, context, componentScope, elementDef);
+                this.actionInterpreter.run(actionDef.instructions, context, runtimeContext, elementDef);
             });
         });
     }
 
     bindModels() {
-        const modelElements = this.component.element.querySelectorAll('[data-tailmix-model-state]');
+        const modelElements = this.component.element.querySelectorAll('[data-model-state]');
         modelElements.forEach(element => {
-            const attribute = element.dataset.tailmixModelAttr;
-            const stateKey = element.dataset.tailmixModelState;
-            const eventName = element.dataset.tailmixModelEvent || 'input';
+            const attribute = element.dataset.modelAttr;
+            const stateKey = element.dataset.modelState;
+            const eventName = element.dataset.modelEvent || 'input';
 
             if (!attribute || !stateKey) return;
 

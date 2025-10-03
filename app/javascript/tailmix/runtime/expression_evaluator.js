@@ -11,10 +11,15 @@ export class ExpressionEvaluator {
 
         const [op, ...args] = expression;
         switch (op) {
-            case 'property': {
+            case 'state':
+            case 'param':
+            case 'this': {
+                const value = this.scope.find(op);
+                return args.reduce((obj, key) => obj?.[key], value);
+            }
+            case 'var': {
                 const [varName, ...path] = args;
                 const value = this.scope.find(varName);
-                // Safely reduce the path.
                 return path.reduce((obj, key) => obj?.[key], value);
             }
             case 'find': {

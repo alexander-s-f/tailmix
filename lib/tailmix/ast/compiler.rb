@@ -32,13 +32,8 @@ module Tailmix
 
       def compile_elements(nodes)
         nodes.map do |node|
-          # Collect all possible variant classes for an element into a flat, unique array.
-          # Now includes classes from both `dimension` and `compound_variant`.
-          dimension_classes = node.rules.grep(DimensionRule).flat_map do |rule|
-            rule.variants.flat_map(&:classes)
-          end
+          dimension_classes = node.rules.grep(DimensionRule).flat_map { |r| r.variants.flat_map(&:classes) }
           compound_classes = node.rules.grep(CompoundVariantRule).flat_map(&:classes)
-
           all_variant_classes = (dimension_classes + compound_classes).uniq
 
           Element.new(
@@ -54,7 +49,7 @@ module Tailmix
       def compile_expression(node)
         case node
         when Value then node.value
-        when Property then [ :property, *node.path ] # CHANGED: Compile Property to [:property, :var_name, :path, ...]
+        when Property then [ node.source, *node.path ]
         when BinaryOperation then [ node.operator, compile_expression(node.left), compile_expression(node.right) ]
         when UnaryOperation then [ node.operator, compile_expression(node.operand) ]
         when FunctionCall then [ node.name, *node.args.map { |arg| compile_expression(arg) } ]
@@ -94,12 +89,21 @@ module Tailmix
               classes: rule.classes
             } ]
           when BindingRule
+            is_content = rule.attribute == :text || rule.attribute == :content
             program << [ :evaluate_and_apply_attribute, {
               attribute: rule.attribute,
               expression: compile_expression(rule.expression),
-              is_content: rule.is_content
+              is_content: is_content
             } ]
           when ModelBindingRule
+            # `model this.value` should also result in setting the `value` attribute
+            # on the server side for initial render.
+            program << [ :evaluate_and_apply_attribute, {
+              attribute: rule.target_expression.path.first,
+              expression: compile_expression(rule.state_expression),
+              is_content: false
+            } ]
+            # Also keep the original instruction for the client-side JS bridge
             program << [ :setup_model_binding, {
               target: compile_expression(rule.target_expression),
               state: compile_expression(rule.state_expression),

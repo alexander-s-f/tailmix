@@ -8,6 +8,23 @@ module Tailmix
     module StandardLibrary
       include Helpers
 
+      def state
+        ExpressionBuilder.new(:state)
+      end
+
+      def this
+        ExpressionBuilder.new(:this)
+      end
+
+      def param
+        ExpressionBuilder.new(:param)
+      end
+
+      # For `let` variables, we'll use a specific helper
+      def var(variable_name)
+        ExpressionBuilder.new(:var, [variable_name])
+      end
+
       # --- Commands ---
       def set(property_expr, value_expr)
         add_instruction(:set, [ property_expr.to_ast, resolve_ast(value_expr) ])

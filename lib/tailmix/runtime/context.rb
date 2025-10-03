@@ -71,6 +71,8 @@ module Tailmix
             key = transition[:payload][:key]
             set_state(key, !get_state(key))
             # `refresh` and `dispatch` are purely client-side operations; we ignore them on the server.
+          else
+            # type code here
           end
         end
       end

@@ -8,8 +8,8 @@ module Tailmix
     class ExpressionBuilder
       include Helpers
 
-      def initialize(initial_path = [])
-        @node = Property.new(path: Array(initial_path))
+      def initialize(source, path = [])
+        @node = Property.new(source: source, path: path)
       end
 
       # --- Operators ---

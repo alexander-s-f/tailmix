@@ -2,7 +2,7 @@ import { Executor } from './executor';
 import { DOMUpdater } from './dom_updater';
 import { ActionInterpreter } from './action_interpreter';
 import { TriggerManager } from './trigger_manager';
-import { Scope } from './scope';
+import { RuntimeContext } from './runtime_context';
 import { debounce } from './utils';
 
 export class Component {
@@ -12,7 +12,7 @@ export class Component {
         this.definition = this.decompress(definition);
         this._state = this.loadInitialState();
 
-        this.scope = new Scope(this._state);
+        this.runtimeContext = new RuntimeContext(this);
 
         this.executor = new Executor();
         this.actionInterpreter = new ActionInterpreter(this);
@@ -33,10 +33,7 @@ export class Component {
 
     update(newState) {
         Object.assign(this._state, newState);
-        // Keep the scope in sync with the state.
-        // A more robust solution might involve a dedicated state management object
-        // that the scope can reference, but this is a simple and effective approach for now.
-        this.scope = new Scope(this._state);
+        this.runtimeContext.onStateUpdate(); // Notify the context
         this.scheduleUpdate();
     }
 
@@ -67,9 +64,7 @@ export class Component {
                     console.error("Tailmix: Invalid JSON in data-tailmix-param", e, elementNode);
                 }
             }
-            const attributeSet = this.executor.execute(elementDef.rules, this.scope, param);
-
-            // The deterministic updater is still crucial for correctness.
+            const attributeSet = this.executor.execute(elementDef.rules, this.runtimeContext.scope, param);
             DOMUpdater.apply(elementNode, attributeSet, elementDef.base_classes, elementDef.variant_classes || []);
         });
     }
@@ -88,27 +83,16 @@ export class Component {
     }
 
     decompress(node) {
-        // If it's not an object or array, return it as is (e.g., strings, numbers)
-        if (typeof node !== 'object' || node === null) {
-            return node;
-        }
+        if (typeof node !== 'object' || node === null) return node;
+        if (Array.isArray(node)) return node.map(item => this.decompress(item));
 
-        // If it's an array, decompress each item
-        if (Array.isArray(node)) {
-            return node.map(item => this.decompress(item));
-        }
-
-        // If it's an object, iterate over its keys
         const newNode = {};
         for (const key in node) {
             if (Object.prototype.hasOwnProperty.call(node, key)) {
                 const value = node[key];
-
-                // These are the keys we know contain class IDs that need to be looked up
                 if ((key === 'base_classes' || key === 'variant_classes') && Array.isArray(value)) {
                     newNode[key] = value.map(id => this.dictionary[id]);
                 } else if (key === 'variants' && typeof value === 'object' && value !== null) {
-                    // For the `variants` object, decompress the class arrays in its values
                     newNode[key] = {};
                     for (const variantKey in value) {
                         if (Object.prototype.hasOwnProperty.call(value, variantKey)) {
@@ -116,7 +100,6 @@ export class Component {
                         }
                     }
                 } else {
-                    // For all other keys, recurse
                     newNode[key] = this.decompress(value);
                 }
             }

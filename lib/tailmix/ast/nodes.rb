@@ -27,8 +27,7 @@ module Tailmix
 
     # --- Expression Nodes (right-hand side of instructions, conditions) ---
     Value = Struct.new(:value, keyword_init: true)
-    # Represents a variable access, e.g., `active_tab` or `current_tab.title`
-    Property = Struct.new(:path, keyword_init: true)
+    Property = Struct.new(:source, :path, keyword_init: true)
     BinaryOperation = Struct.new(:operator, :left, :right, keyword_init: true)
     UnaryOperation = Struct.new(:operator, :operand, keyword_init: true)
     CollectionOperation = Struct.new(:collection, :operation, :args, keyword_init: true)

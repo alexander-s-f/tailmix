@@ -54,7 +54,7 @@ module Tailmix
           end
         end
       else
-        puts "Compressing class: #{node.class} - node: #{node}"
+        # puts "Compressing class: #{node.class} - node: #{node}"
       end
     end
 

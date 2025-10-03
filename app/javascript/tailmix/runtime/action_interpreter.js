@@ -7,8 +7,10 @@ export class ActionInterpreter {
         this.component = component;
     }
 
-    async run(instructions, context, componentScope, elementDef) { // <-- Added elementDef
+    async run(instructions, context, runtimeContext, elementDef) {
         if (!instructions) return;
+
+        const componentScope = runtimeContext.scope;
 
         componentScope.inNewScope(actionScope => {
             // 1. Hydrate param, event, and payload for the action scope
@@ -40,7 +42,7 @@ export class ActionInterpreter {
                 const handler = OPERATIONS[op];
 
                 if (handler) {
-                    handler(this, args, actionScope);
+                    handler(this, args, actionScope, runtimeContext);
                 } else {
                     console.warn(`Unknown action operator: ${op}`);
                 }
