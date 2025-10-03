@@ -55,6 +55,8 @@ module Tailmix
         when FunctionCall then [ node.name, *node.args.map { |arg| compile_expression(arg) } ]
         when CollectionOperation
           [ node.operation, compile_expression(node.collection), compile_expression(node.args) ]
+        when TernaryOperation
+          [ :iif, compile_expression(node.condition), compile_expression(node.then_expr), compile_expression(node.else_expr) ]
         when Hash
           node.transform_values { |v| compile_expression(v) }
         else

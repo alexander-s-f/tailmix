@@ -23,8 +23,30 @@ export class ExpressionEvaluator {
         }
 
         // --- Collection Operations ---
-        if (['find', 'sum', 'avg', 'min', 'max', 'size'].includes(op)) { // Was 'count'
+        if (['find', 'sum', 'avg', 'min', 'max', 'size'].includes(op)) {
             return this.evaluateCollectionOperation(op, args);
+        }
+
+        // --- Function Calls & Ternary ---
+        switch (op) {
+            case 'iif':
+                return this.evaluate(args[0]) ? this.evaluate(args[1]) : this.evaluate(args[2]);
+            case 'upcase':
+                return String(this.evaluate(args[0])).toUpperCase();
+            case 'downcase':
+                return String(this.evaluate(args[0])).toLowerCase();
+            case 'capitalize':
+                const str = String(this.evaluate(args[0]));
+                return str.charAt(0).toUpperCase() + str.slice(1);
+            case 'slice':
+                const strSlice = String(this.evaluate(args[0]));
+                const start = this.evaluate(args[1]);
+                const length = args.length > 2 ? this.evaluate(args[2]) : undefined;
+                return strSlice.slice(start, length === undefined ? undefined : start + length);
+            case 'includes':
+                return String(this.evaluate(args[0])).includes(String(this.evaluate(args[1])));
+            case 'concat':
+                return args.map(arg => this.evaluate(arg)).join('');
         }
 
         // --- Binary and Unary Operations ---

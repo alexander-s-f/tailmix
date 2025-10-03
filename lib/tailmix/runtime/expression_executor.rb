@@ -18,8 +18,12 @@ module Tailmix
         case op
         when :state, :param, :this, :var
           evaluate_property(op, args)
-        when :find, :sum, :avg, :min, :max, :size # Was :count
+        when :find, :sum, :avg, :min, :max, :size
           evaluate_collection_operation(op, args)
+        when :upcase, :downcase, :capitalize, :slice, :includes, :concat
+          evaluate_function_call(op, args)
+        when :iif
+          execute(args[0]) ? execute(args[1]) : execute(args[2])
         when :eq then execute(args[0]) == execute(args[1])
         when :gt then execute(args[0]) > execute(args[1])
         when :lt then execute(args[0]) < execute(args[1])
@@ -88,6 +92,21 @@ module Tailmix
           else
             break nil
           end
+        end
+      end
+
+      def evaluate_function_call(op, args)
+        case op
+        when :upcase then execute(args[0]).to_s.upcase
+        when :downcase then execute(args[0]).to_s.downcase
+        when :capitalize then execute(args[0]).to_s.capitalize
+        when :slice
+          str = execute(args[0]).to_s
+          start = execute(args[1])
+          length = args[2] ? execute(args[2]) : nil
+          length ? str.slice(start, length) : str.slice(start..)
+        when :includes then execute(args[0]).to_s.include?(execute(args[1]).to_s)
+        when :concat then args.map { |arg| execute(arg) }.join
         end
       end
     end

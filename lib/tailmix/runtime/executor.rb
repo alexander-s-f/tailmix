@@ -77,10 +77,18 @@ module Tailmix
       def apply_attribute(scope, set, args)
         value = ExpressionExecutor.call(args[:expression], scope)
         return set if value.nil?
+
         if args[:is_content]
           set.merge(other: set.other.merge(content: value))
         else
-          set.merge(other: set.other.merge(args[:attribute] => value))
+          # Special handling for class attribute to merge with existing classes
+          if args[:attribute] == :class
+            existing_classes = set.classes.dup
+            value.to_s.split.each { |cls| existing_classes.add(cls) }
+            set.merge(classes: existing_classes)
+          else
+            set.merge(other: set.other.merge(args[:attribute] => value))
+          end
         end
       end
 
@@ -115,7 +123,7 @@ module Tailmix
         classes_to_apply = args[:classes]
 
         all_conditions_met = conditions.all? do |state_key, expected_value_expr|
-          current_value = scope.find(state_key)
+          current_value = ExpressionExecutor.call(state_key, scope)
           expected_value = ExpressionExecutor.call(expected_value_expr, scope)
           current_value.to_s == expected_value.to_s
         end
