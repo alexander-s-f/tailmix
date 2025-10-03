@@ -11,14 +11,14 @@ class CounterComponent
     element :increment_button, "text-xl text-yellow-500 cursor-pointer" do
       constructor do
         on :click do
-          state.count.increment
-          log(param) # >> {test: 123}
+          increment(state.count)
+          log("Button clicked with params:", param)
         end
       end
     end
 
     element :label, "text-xl p-4 min-h-[2em]" do
-      bind :text, to: :count
+      bind :text, to: state.count
     end
   end
 

@@ -20,7 +20,7 @@ module Tailmix
       end
 
       def execute
-        scope = Scope.new(@state.to_h)
+        scope = Scope.new({ state: @state.to_h })
 
         scope.in_new_scope do |element_scope|
           element_scope.define(:param, @with_data)
@@ -104,9 +104,9 @@ module Tailmix
 
         new_other = set.other.merge(attribute_name => value)
         new_data = set.data.merge(
-          "tailmix-model-attr": attribute_name,
-          "tailmix-model-state": state_key,
-          "tailmix-model-event": args.dig(:options, :on) || "input"
+          "model-attr": attribute_name,
+          "model-state": state_key,
+          "model-event": args.dig(:options, :on) || "input"
         )
         set.merge(other: new_other, data: new_data)
       end

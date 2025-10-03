@@ -26,13 +26,14 @@ module Tailmix
       end
 
       def render
-        final_hash = @set.other.dup.except(:content)
+        final_hash = @set.other.dup.compact.except(:content)
 
         class_string = @set.classes.to_a.join(" ")
         final_hash["class"] = class_string unless class_string.empty?
 
-        final_hash.merge!(render_data_map("data", @set.data))
-        final_hash.merge!(render_data_map("aria", @set.aria))
+        # Pass only the hash, the prefix is known.
+        final_hash.merge!(render_map("data", @set.data))
+        final_hash.merge!(render_map("aria", @set.aria))
 
         final_hash
       end
@@ -44,15 +45,14 @@ module Tailmix
 
       private
 
-      def render_data_map(prefix, hash, accumulator = {})
+      def render_map(prefix, hash)
+        accumulator = {}
         hash.each do |key, value|
+          next if value.nil?
+          # Always construct the key from scratch
           current_key = "#{prefix}-#{key.to_s.tr('_', '-')}"
-          if value.is_a?(Hash)
-            render_data_map(current_key, value, accumulator)
-          else
-            serialized_value = value.is_a?(Enumerable) ? value.to_a.join(" ") : value
-            accumulator[current_key] = serialized_value unless serialized_value.to_s.empty?
-          end
+          serialized_value = value.is_a?(Enumerable) ? value.to_a.join(" ") : value.to_s
+          accumulator[current_key] = serialized_value unless serialized_value.empty?
         end
         accumulator
       end

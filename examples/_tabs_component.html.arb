@@ -1,21 +1,22 @@
 tabs_data =  [
-  { tab: :profile, title: "Profile" },
-  { tab: :billing, title: "Billing" }
+  { id: :profile, title: "Profile" },
+  { id: :billing, title: "Billing" },
+  { id: :settings, title: "Settings" }
 ]
 
-tailmix TabsComponent, tabs: tabs_data do |ui, component|
+tailmix TabsComponent, tabs: tabs_data, active_tab: :billing do |ui, component|
   div ui.container.component do
     div class: "flex border-b border-gray-700" do
-      ui.state.tabs.each do |tab|
-        div ui.tab(key: tab[:tab]) do
-          tab[:title]
-        end
+      ui.state.tabs.each do |tab_data|
+        attributes = ui.tab(id: tab_data[:id])
+        div attributes.content, attributes
       end
     end
+
     div class: "p-4" do
-      ui.state.tabs.each do |tab|
-        div ui.panel(key: tab[:tab]) do
-          "Content for: #{tab[:title]}"
+      ui.state.tabs.each do |tab_data|
+        div ui.panel(id: tab_data[:id]) do
+          "Content for: #{tab_data[:title]}"
         end
       end
     end

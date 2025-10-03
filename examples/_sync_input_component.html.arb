@@ -1,7 +1,24 @@
 
 tailmix SyncInputComponent do |ui|
   div ui.container.component do
-    div ui.label
+    # Use the `.content` method for the label
+    label_attrs = ui.label
+    div label_attrs.content, label_attrs
+
     input ui.input
+
+    select ui.type_selector do
+      ui.state.types.each do |type_option|
+        option_attrs = { value: type_option }
+        # Use `state` proxy to check the current value
+        if ui.state.type.to_s == type_option.to_s
+          option_attrs[:selected] = true
+        end
+
+        option type_option, **option_attrs
+      end
+    end
+
+    button "Set to Password", ui.button
   end
 end
