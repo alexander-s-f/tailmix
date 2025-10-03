@@ -31,14 +31,12 @@ module Tailmix
         class_string = @set.classes.to_a.join(" ")
         final_hash["class"] = class_string unless class_string.empty?
 
-        # Pass only the hash, the prefix is known.
         final_hash.merge!(render_map("data", @set.data))
         final_hash.merge!(render_map("aria", @set.aria))
 
         final_hash
       end
 
-      # This is what we need for `bind :text` to work on the server.
       def content
         @set.other[:content]
       end
@@ -49,7 +47,6 @@ module Tailmix
         accumulator = {}
         hash.each do |key, value|
           next if value.nil?
-          # Always construct the key from scratch
           current_key = "#{prefix}-#{key.to_s.tr('_', '-')}"
           serialized_value = value.is_a?(Enumerable) ? value.to_a.join(" ") : value.to_s
           accumulator[current_key] = serialized_value unless serialized_value.empty?

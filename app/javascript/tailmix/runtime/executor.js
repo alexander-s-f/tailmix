@@ -17,13 +17,13 @@ export class Executor {
 
         componentScope.inNewScope(elementScope => {
             elementScope.define('param', withData);
-            const evaluator = new ExpressionEvaluator(elementScope); // <-- USE
+            const evaluator = new ExpressionEvaluator(elementScope);
 
             for (const instruction of program) {
                 const [opcode, args] = instruction;
                 attributeSet = this.executeInstruction(opcode, args, attributeSet, evaluator);
             }
-        }, {}); // Pass empty hash for local vars
+        }, {});
 
         return attributeSet;
     }
@@ -32,7 +32,7 @@ export class Executor {
         switch (opcode) {
             case 'define_var': {
                 const value = evaluator.evaluate(args.expression);
-                evaluator.scope.define(args.name, value); // Define in the current scope
+                evaluator.scope.define(args.name, value);
                 return set;
             }
             case 'evaluate_and_apply_classes':
@@ -43,12 +43,10 @@ export class Executor {
                 return this.applyAttribute(set, args, evaluator);
             case 'setup_model_binding':
                 return this.applyModelBinding(set, args, evaluator);
-            // ... other instructions
         }
         return set;
     }
 
-    // --- Instruction Implementations (Unchanged) ---
     applyClasses(set, args, evaluator) {
         const value = evaluator.evaluate(args.condition);
         const classesToApply = args.variants[value];
@@ -95,9 +93,9 @@ export class Executor {
         const newOther = { ...set.other, [attributeName]: value };
         const newData = {
             ...set.data,
-            'data-tailmix-model-attr': attributeName,
-            'data-tailmix-model-state': stateKey,
-            'data-tailmix-model-event': args.options?.on || 'input'
+            modelAttr: attributeName,
+            modelState: stateKey,
+            modelEvent: args.options?.on || 'input'
         };
         return { ...set, other: newOther, data: newData };
     }

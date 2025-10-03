@@ -31,7 +31,7 @@ module Tailmix
           )
 
           if @with_data.any?
-            attribute_set.other["data-tailmix-param"] = @with_data.to_json
+            attribute_set.data[:tailmix_param] = @with_data.to_json
           end
 
           @program.each do |instruction|
@@ -89,13 +89,12 @@ module Tailmix
         current_actions = set.data[:tailmix_action] || ""
         new_action_string = "#{current_actions} #{args[:event]}->#{args[:action_name]}".strip
         new_data = set.data.merge(tailmix_action: new_action_string)
-        new_data.merge!("tailmix-action-with": payload.to_json) if payload.any?
+        new_data.merge!(tailmix_action_with: payload.to_json) if payload.any?
         set.merge(data: new_data)
       end
 
       def apply_model_binding(scope, set, args)
-        # Model binding is now more abstract
-        target_path = args[:target].drop(1) # drop :property
+        target_path = args[:target].drop(1)
         state_path = args[:state].drop(1)
         attribute_name = target_path.join("-")
         state_key = state_path.first
@@ -104,9 +103,9 @@ module Tailmix
 
         new_other = set.other.merge(attribute_name => value)
         new_data = set.data.merge(
-          "model-attr": attribute_name,
-          "model-state": state_key,
-          "model-event": args.dig(:options, :on) || "input"
+          model_attr: attribute_name,
+          model_state: state_key,
+          model_event: args.dig(:options, :on) || "input"
         )
         set.merge(other: new_other, data: new_data)
       end
@@ -115,7 +114,6 @@ module Tailmix
         conditions = args[:conditions]
         classes_to_apply = args[:classes]
 
-        # Check if all conditions for the compound variant are met
         all_conditions_met = conditions.all? do |state_key, expected_value_expr|
           current_value = scope.find(state_key)
           expected_value = ExpressionExecutor.call(expected_value_expr, scope)
@@ -124,7 +122,6 @@ module Tailmix
 
         return set unless all_conditions_met
 
-        # If conditions are met, merge the classes
         set.merge(classes: set.classes.dup.merge(classes_to_apply))
       end
     end
