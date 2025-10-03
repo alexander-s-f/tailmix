@@ -22,8 +22,9 @@ module Tailmix
 
     # --- Nodes for Action (instructions) ---
     Instruction = Struct.new(:operation, :args, keyword_init: true)
+    FetchInstruction = Struct.new(:url, :options, :on_success, :on_error, keyword_init: true) # ADDED
 
-    # --- Expression Nodes (right-hand side of instructions, conditions) ---
+    # --- Expression Nodes ---
     Value = Struct.new(:value, keyword_init: true)
     Property = Struct.new(:source, :path, keyword_init: true)
     BinaryOperation = Struct.new(:operator, :left, :right, keyword_init: true)

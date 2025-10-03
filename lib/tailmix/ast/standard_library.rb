@@ -63,6 +63,22 @@ module Tailmix
         add_instruction(:if, [ resolve_ast(condition), builder.instructions ])
       end
 
+      # --- Complex Commands ---
+      def fetch(url, method: :get, params: {}, headers: {}, &block)
+        builder = FetchBuilder.new
+        builder.instance_eval(&block)
+
+        options = { method: method, params: params, headers: headers }
+
+        instruction = FetchInstruction.new(
+          url: resolve_ast(url),
+          options: resolve_ast(options),
+          on_success: builder.on_success_instructions,
+          on_error: builder.on_error_instructions
+        )
+        add_instruction(:fetch, [instruction])
+      end
+
       # --- Expression Functions ---
       def iif(condition, then_expr, else_expr)
         TernaryOperation.new(
@@ -82,7 +98,13 @@ module Tailmix
       private
 
       def add_instruction(operation, args)
-        @instructions << Instruction.new(operation: operation, args: args)
+        # For simple instructions, args is an array of expressions.
+        # For complex ones like fetch, it's a single instruction node.
+        if operation == :fetch
+          @instructions << args.first
+        else
+          @instructions << Instruction.new(operation: operation, args: args)
+        end
       end
 
       def function_call(name, *args)
