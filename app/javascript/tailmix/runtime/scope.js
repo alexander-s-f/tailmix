@@ -64,13 +64,15 @@ export class Scope {
 
     /**
      * A convenience method to execute a block within a new, temporary scope.
+     * It now supports async callbacks.
      * @param {Function} callback - The function to execute within the new scope.
      * @param {Object} vars - Initial variables for the new scope.
      */
-    inNewScope(callback, vars = {}) {
+    async inNewScope(callback, vars = {}) {
         this.push(vars);
         try {
-            return callback(this);
+            // FIX: Await the callback to ensure it completes before the scope is popped.
+            return await callback(this);
         } finally {
             this.pop();
         }

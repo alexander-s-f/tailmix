@@ -20,6 +20,10 @@ module Tailmix
         ExpressionBuilder.new(:param)
       end
 
+      def event
+        ExpressionBuilder.new(:event)
+      end
+
       def var(variable_name)
         ExpressionBuilder.new(:var, [variable_name])
       end
@@ -79,6 +83,12 @@ module Tailmix
         add_instruction(:fetch, [instruction])
       end
 
+      def debounce(delay, &block)
+        builder = DebounceBuilder.new(&block)
+        instruction = DebounceInstruction.new(delay: delay, instructions: builder.instructions)
+        add_instruction(:debounce, [instruction])
+      end
+
       # --- Expression Functions ---
       def iif(condition, then_expr, else_expr)
         TernaryOperation.new(
@@ -98,9 +108,7 @@ module Tailmix
       private
 
       def add_instruction(operation, args)
-        # For simple instructions, args is an array of expressions.
-        # For complex ones like fetch, it's a single instruction node.
-        if operation == :fetch
+        if [:fetch, :debounce].include?(operation)
           @instructions << args.first
         else
           @instructions << Instruction.new(operation: operation, args: args)

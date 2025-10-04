@@ -22,7 +22,8 @@ module Tailmix
 
     # --- Nodes for Action (instructions) ---
     Instruction = Struct.new(:operation, :args, keyword_init: true)
-    FetchInstruction = Struct.new(:url, :options, :on_success, :on_error, keyword_init: true) # ADDED
+    FetchInstruction = Struct.new(:url, :options, :on_success, :on_error, keyword_init: true)
+    DebounceInstruction = Struct.new(:delay, :instructions, keyword_init: true)
 
     # --- Expression Nodes ---
     Value = Struct.new(:value, keyword_init: true)

@@ -12,7 +12,7 @@ export class ExpressionEvaluator {
         const [op, ...args] = expression;
 
         // --- Property Access ---
-        if (['state', 'param', 'this'].includes(op)) {
+        if (['state', 'param', 'this', 'event'].includes(op)) {
             const value = this.scope.find(op);
             return args.reduce((obj, key) => obj?.[key], value);
         }

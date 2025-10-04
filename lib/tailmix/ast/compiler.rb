@@ -65,13 +65,20 @@ module Tailmix
       end
 
       def compile_instruction(node)
-        if node.is_a?(FetchInstruction)
+        case node
+        when FetchInstruction
           return {
             operation: :fetch,
             url: compile_expression(node.url),
             options: compile_expression(node.options),
             on_success: node.on_success.map { |instr| compile_instruction(instr) },
             on_error: node.on_error.map { |instr| compile_instruction(instr) }
+          }
+        when DebounceInstruction
+          return {
+            operation: :debounce,
+            delay: node.delay,
+            instructions: node.instructions.map { |instr| compile_instruction(instr) }
           }
         end
 

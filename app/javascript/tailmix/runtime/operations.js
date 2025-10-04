@@ -1,13 +1,7 @@
 import {ExpressionEvaluator} from "./expression_evaluator";
 
-// Helper to get the top-level state key from an expression
-const getStateKey = (expression) => {
-    if (expression[0] !== 'state' || !expression[1]) {
-        console.warn("Tailmix: This operation currently only supports direct state properties (e.g., `state.foo`).");
-        return null;
-    }
-    return expression[1];
-}
+// A map to store debounce timers for each element, preventing clashes.
+const debounceTimers = new WeakMap();
 
 const getCsrfToken = () => {
     const token = document.querySelector('meta[name="csrf-token"]');
@@ -20,73 +14,92 @@ const toQueryString = (params) => {
         .join('&');
 }
 
+const getStateKey = (expression) => {
+    if (expression[0] !== 'state' || !expression[1]) {
+        console.warn("Tailmix: This operation currently only supports direct state properties (e.g., `state.foo`).");
+        return null;
+    }
+    return expression[1];
+}
+
+function safeReplacer() {
+    const seen = new WeakSet();
+    return function (_key, value) {
+        if (typeof value === 'function') return `[Function ${value.name || 'anonymous'}]`;
+        if (typeof value === 'bigint')   return `${value}n`;
+
+        if (value && typeof value === 'object') {
+            if (seen.has(value)) return '[Circular]';
+            seen.add(value);
+        }
+        return value;
+    };
+}
+
+function prettyJSON(value, space = 2) {
+    return JSON.stringify(value, safeReplacer(), space);
+}
+
 export const OPERATIONS = {
     set: (interpreter, instruction, scope, runtimeContext) => {
-        const stateKey = getStateKey(instruction.args[0]);
+        const args = instruction.args;
+        const stateKey = getStateKey(args[0]);
         if (!stateKey) return;
         const evaluator = new ExpressionEvaluator(scope);
-        const value = evaluator.evaluate(instruction.args[1]);
+        const value = evaluator.evaluate(args[1]);
+        if (value === undefined) {
+            console.warn(`Tailmix: 'set' for '${stateKey}' received 'undefined'. Aborting.`);
+            return;
+        }
         runtimeContext.component.update({ [stateKey]: value });
     },
 
     toggle: (interpreter, instruction, scope, runtimeContext) => {
-        const stateKey = getStateKey(instruction.args[0]);
+        const args = instruction.args;
+        const stateKey = getStateKey(args[0]);
         if (!stateKey) return;
-
         const evaluator = new ExpressionEvaluator(scope);
-        const currentValue = evaluator.evaluate(instruction.args[0]);
-
+        const currentValue = evaluator.evaluate(args[0]);
         runtimeContext.component.update({ [stateKey]: !currentValue });
     },
 
     increment: (interpreter, instruction, scope, runtimeContext) => {
-        const stateKey = getStateKey(instruction.args[0]);
+        const args = instruction.args;
+        const stateKey = getStateKey(args[0]);
         if (!stateKey) return;
-
         const evaluator = new ExpressionEvaluator(scope);
-        const by = instruction.args[1] ? evaluator.evaluate(instruction.args[1]) : 1;
-        const currentValue = evaluator.evaluate(instruction.args[0]) || 0;
-
+        const by = args[1] ? evaluator.evaluate(args[1]) : 1;
+        const currentValue = evaluator.evaluate(args[0]) || 0;
         runtimeContext.component.update({ [stateKey]: currentValue + by });
     },
 
     decrement: (interpreter, instruction, scope, runtimeContext) => {
-        const stateKey = getStateKey(instruction.args[0]);
+        const args = instruction.args;
+        const stateKey = getStateKey(args[0]);
         if (!stateKey) return;
-
         const evaluator = new ExpressionEvaluator(scope);
-        const by = instruction.args[1] ? evaluator.evaluate(instruction.args[1]) : 1;
-        const currentValue = evaluator.evaluate(instruction.args[0]) || 0;
-
+        const by = args[1] ? evaluator.evaluate(args[1]) : 1;
+        const currentValue = evaluator.evaluate(args[0]) || 0;
         runtimeContext.component.update({ [stateKey]: currentValue - by });
     },
 
     push: (interpreter, instruction, scope, runtimeContext) => {
-        const stateKey = getStateKey(instruction.args[0]);
+        const args = instruction.args;
+        const stateKey = getStateKey(args[0]);
         if (!stateKey) return;
-
         const evaluator = new ExpressionEvaluator(scope);
-        const currentArray = evaluator.evaluate(instruction.args[0]) || [];
-        const value = evaluator.evaluate(instruction.args[1]);
-        if (!Array.isArray(currentArray)) {
-            console.warn(`Tailmix: 'push' expected a state property of type Array, but got something else for '${stateKey}'.`);
-            return;
-        }
+        const currentArray = evaluator.evaluate(args[0]) || [];
+        const value = evaluator.evaluate(args[1]);
         runtimeContext.component.update({ [stateKey]: [...currentArray, value] });
     },
 
     delete: (interpreter, instruction, scope, runtimeContext) => {
-        const stateKey = getStateKey(instruction.args[0]);
+        const args = instruction.args;
+        const stateKey = getStateKey(args[0]);
         if (!stateKey) return;
-
         const evaluator = new ExpressionEvaluator(scope);
-        const currentArray = evaluator.evaluate(instruction.args[0]) || [];
-        const valueToDelete = evaluator.evaluate(instruction.args[1]);
-        if (!Array.isArray(currentArray)) {
-            console.warn(`Tailmix: 'delete' expected a state property of type Array, but got something else for '${stateKey}'.`);
-            return;
-        }
-
+        const currentArray = evaluator.evaluate(args[0]) || [];
+        const valueToDelete = evaluator.evaluate(args[1]);
         const index = currentArray.findIndex(item => JSON.stringify(item) === JSON.stringify(valueToDelete));
         if (index > -1) {
             const newArray = [...currentArray];
@@ -96,20 +109,48 @@ export const OPERATIONS = {
     },
 
     dispatch: (interpreter, instruction, scope) => {
+        const args = instruction.args;
         const evaluator = new ExpressionEvaluator(scope);
-        const eventName = evaluator.evaluate(instruction.args[0]);
-        const detail = evaluator.evaluate(instruction.args[1]);
+        const eventName = evaluator.evaluate(args[0]);
+        const detail = evaluator.evaluate(args[1]);
         const element = scope.find('event')?.currentTarget;
-
         if (element && eventName) {
             element.dispatchEvent(new CustomEvent(eventName, { bubbles: true, detail }));
         }
     },
 
-    log: (interpreter, instruction, scope) => {
+    log: (interpreter, instruction, scope, runtimeContext) => {
+        // console.log(prettyJSON(instruction.args));
+        // console.log(prettyJSON(scope));
+        // console.log(prettyJSON(runtimeContext));
+
+        const args = instruction.args;
         const evaluator = new ExpressionEvaluator(scope);
-        const resolvedArgs = instruction.args.map(arg => evaluator.evaluate(arg));
-        console.log('[Tailmix Log]', ...resolvedArgs);
+        const resolvedArgs = args.map(arg => evaluator.evaluate(arg));
+        const componentName = runtimeContext.component.definition.name;
+        console.log(`[Tailmix Log - ${componentName}]`, ...resolvedArgs);
+    },
+
+    debounce: async (interpreter, instruction, scope, runtimeContext, elementDef) => {
+        const element = scope.find('event')?.currentTarget;
+        if (!element) {
+            console.warn("Tailmix: `debounce` can only be used in an event context.");
+            return;
+        }
+
+        if (debounceTimers.has(element)) {
+            clearTimeout(debounceTimers.get(element));
+        }
+
+        // Pass the original context to the debounced call
+        const originalContext = { event: scope.find('event'), payload: scope.find('payload') };
+
+        const timer = setTimeout(() => {
+            debounceTimers.delete(element);
+            interpreter.run(instruction.instructions, originalContext, runtimeContext, elementDef);
+        }, instruction.delay);
+
+        debounceTimers.set(element, timer);
     },
 
     fetch: async (interpreter, instruction, scope, runtimeContext, elementDef) => {
