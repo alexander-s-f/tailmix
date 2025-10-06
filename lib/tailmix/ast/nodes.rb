@@ -3,8 +3,8 @@
 module Tailmix
   module AST
     # --- Root nodes ---
-    Root = Struct.new(:name, :states, :actions, :elements, :plugins, keyword_init: true)
-    State = Struct.new(:name, :options, keyword_init: true)
+    Root = Struct.new(:name, :states, :actions, :elements, :plugins, :connect_instructions, :disconnect_instructions, keyword_init: true)
+    State = Struct.new(:name, :options, :nested_states, keyword_init: true)
     Element = Struct.new(:name, :base_classes, :rules, :default_attributes, :variant_classes, keyword_init: true)
     Action = Struct.new(:name, :instructions, keyword_init: true)
     Plugin = Struct.new(:name, :options, keyword_init: true)
@@ -24,6 +24,7 @@ module Tailmix
     Instruction = Struct.new(:operation, :args, keyword_init: true)
     FetchInstruction = Struct.new(:url, :options, :on_success, :on_error, keyword_init: true)
     DebounceInstruction = Struct.new(:delay, :instructions, keyword_init: true)
+    SetIntervalInstruction = Struct.new(:target_property, :delay, :instructions, keyword_init: true)
 
     # --- Expression Nodes ---
     Value = Struct.new(:value, keyword_init: true)

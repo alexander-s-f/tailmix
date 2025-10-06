@@ -25,7 +25,7 @@ module Tailmix
       end
 
       def var(variable_name)
-        ExpressionBuilder.new(:var, [variable_name])
+        ExpressionBuilder.new(:var, [ variable_name ])
       end
 
       # --- Commands ---
@@ -67,6 +67,21 @@ module Tailmix
         add_instruction(:if, [ resolve_ast(condition), builder.instructions ])
       end
 
+      def set_interval(target_property_expr, delay, &block)
+        builder = ActionBuilder.new; builder.instance_eval(&block)
+
+        instruction = SetIntervalInstruction.new(
+          target_property: target_property_expr.to_ast,
+          delay: resolve_ast(delay),
+          instructions: builder.instructions
+        )
+        add_instruction(:set_interval, [ instruction ])
+      end
+
+      def clear_interval(timer_id_expr)
+        add_instruction(:clear_interval, [ resolve_ast(timer_id_expr) ])
+      end
+
       # --- Complex Commands ---
       def fetch(url, method: :get, params: {}, headers: {}, &block)
         builder = FetchBuilder.new
@@ -80,13 +95,13 @@ module Tailmix
           on_success: builder.on_success_instructions,
           on_error: builder.on_error_instructions
         )
-        add_instruction(:fetch, [instruction])
+        add_instruction(:fetch, [ instruction ])
       end
 
       def debounce(delay, &block)
         builder = DebounceBuilder.new(&block)
         instruction = DebounceInstruction.new(delay: delay, instructions: builder.instructions)
-        add_instruction(:debounce, [instruction])
+        add_instruction(:debounce, [ instruction ])
       end
 
       # --- Expression Functions ---
@@ -108,7 +123,7 @@ module Tailmix
       private
 
       def add_instruction(operation, args)
-        if [:fetch, :debounce].include?(operation)
+        if [ :fetch, :debounce, :set_interval ].include?(operation)
           @instructions << args.first
         else
           @instructions << Instruction.new(operation: operation, args: args)

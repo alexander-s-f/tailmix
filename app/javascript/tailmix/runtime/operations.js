@@ -119,6 +119,34 @@ export const OPERATIONS = {
         }
     },
 
+    set_interval: (interpreter, instruction, scope, runtimeContext, elementDef) => {
+        const evaluator = new ExpressionEvaluator(scope);
+        const delay = evaluator.evaluate(instruction.delay);
+        const targetProperty = instruction.target_property; // This is a path like ['state', 'timer_id']
+        const stateKey = getStateKey(targetProperty);
+
+        if (!stateKey) {
+            console.warn("Tailmix: `set_interval` requires a direct state property as its first argument.");
+            return;
+        }
+
+        const timerId = setInterval(() => {
+            interpreter.run(instruction.instructions, {}, runtimeContext, elementDef);
+        }, delay);
+
+        // Store the timer ID in the specified state property
+        runtimeContext.component.update({ [stateKey]: timerId });
+    },
+
+    clear_interval: (interpreter, instruction, scope) => {
+        const args = instruction.args;
+        const evaluator = new ExpressionEvaluator(scope);
+        const timerId = evaluator.evaluate(args[0]);
+        if (timerId) {
+            clearInterval(timerId);
+        }
+    },
+
     log: (interpreter, instruction, scope, runtimeContext) => {
         // console.log(prettyJSON(instruction.args));
         // console.log(prettyJSON(scope));

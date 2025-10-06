@@ -24,6 +24,11 @@ export class Component {
         this.triggerManager.bind();
         this.performUpdate();
 
+        if (this.definition.connect_instructions?.length > 0) {
+            // Run connect actions. No event or payload context.
+            this.actionInterpreter.run(this.definition.connect_instructions, {}, this.runtimeContext, {});
+        }
+
         console.log(`Tailmix component "${this.definition.name || 'Unnamed'}" initialized.`);
     }
 
@@ -105,5 +110,13 @@ export class Component {
             }
         }
         return newNode;
+    }
+
+    disconnect() {
+        if (this.definition.disconnect_instructions?.length > 0) {
+            // Run disconnect actions.
+            this.actionInterpreter.run(this.definition.disconnect_instructions, {}, this.runtimeContext, {});
+        }
+        console.log(`Tailmix component "${this.definition.name || 'Unnamed'}" disconnected.`);
     }
 }

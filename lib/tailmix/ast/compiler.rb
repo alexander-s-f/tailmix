@@ -15,7 +15,9 @@ module Tailmix
           states: node.states,
           actions: compile_actions(node.actions),
           elements: compile_elements(node.elements),
-          plugins: compile_plugins(node.plugins)
+          plugins: compile_plugins(node.plugins),
+          connect_instructions: node.connect_instructions.map { |instr| compile_instruction(instr) },
+          disconnect_instructions: node.disconnect_instructions.map { |instr| compile_instruction(instr) }
         )
       end
 
@@ -78,6 +80,13 @@ module Tailmix
           return {
             operation: :debounce,
             delay: node.delay,
+            instructions: node.instructions.map { |instr| compile_instruction(instr) }
+          }
+        when SetIntervalInstruction
+          return {
+            operation: :set_interval,
+            target_property: compile_expression(node.target_property),
+            delay: compile_expression(node.delay),
             instructions: node.instructions.map { |instr| compile_instruction(instr) }
           }
         end
