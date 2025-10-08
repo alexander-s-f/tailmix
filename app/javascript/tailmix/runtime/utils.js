@@ -46,10 +46,17 @@ export const getCsrfToken = () => {
     return token ? token.content : null;
 }
 
-export const toQueryString = (params) => {
-    return Object.entries(params)
-        .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
-        .join('&');
+export const toQueryString = (obj, prefix) => {
+    const str = [];
+    let p;
+    for (p in obj) {
+        if (Object.hasOwn(obj, p)) {
+            const k = prefix ? `${prefix}[${p}]` : p;
+            const v = obj[p];
+            str.push((v !== null && typeof v === 'object') ? toQueryString(v, k) : `${encodeURIComponent(k)}=${encodeURIComponent(v)}`);
+        }
+    }
+    return str.join('&');
 }
 
 export const getStateKey = (expression) => {

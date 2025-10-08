@@ -169,7 +169,6 @@ export const OPERATIONS = {
             ...options.headers
         };
 
-        // Evaluate each value within the params object
         const evaluatedParams = {};
         for (const key in params) {
             if (Object.hasOwn(params, key)) {
@@ -190,7 +189,9 @@ export const OPERATIONS = {
         if (Object.keys(evaluatedParams).length > 0) {
             if (method === 'GET') {
                 const queryString = toQueryString(evaluatedParams);
-                url = `${url}${url.includes('?') ? '&' : '?'}${queryString}`;
+                if (queryString) {
+                    url = `${url}${url.includes('?') ? '&' : '?'}${queryString}`;
+                }
             } else {
                 fetchOptions.body = JSON.stringify(evaluatedParams);
                 headers['Content-Type'] = 'application/json';
