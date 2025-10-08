@@ -86,17 +86,22 @@ export class Executor {
 
     applyModelBinding(set, args, evaluator) {
         const targetPath = args.target.slice(1);
-        const statePath = args.state.slice(1);
+        const statePathArray = args.state.slice(1);
         const attributeName = targetPath.join('-');
-        const stateKey = statePath[0];
+        const statePathString = statePathArray.join('.');
         const value = evaluator.evaluate(args.state);
+
         const newOther = { ...set.other, [attributeName]: value };
+
+        // Use clean keys ('modelAttr') just like the server-side Ruby executor.
+        // The `DOMUpdater` will add the `data-` prefix later.
         const newData = {
             ...set.data,
             modelAttr: attributeName,
-            modelState: stateKey,
+            modelState: statePathString,
             modelEvent: args.options?.on || 'input'
         };
+
         return { ...set, other: newOther, data: newData };
     }
 }

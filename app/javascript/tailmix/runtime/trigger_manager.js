@@ -52,13 +52,22 @@ export class TriggerManager {
         const modelElements = this.component.element.querySelectorAll('[data-model-state]');
         modelElements.forEach(element => {
             const attribute = element.dataset.modelAttr;
-            const stateKey = element.dataset.modelState;
+            const statePath = element.dataset.modelState; // e.g. "filters.name_cont"
             const eventName = element.dataset.modelEvent || 'input';
 
-            if (!attribute || !stateKey) return;
+            if (!attribute || !statePath) return;
 
             element.addEventListener(eventName, (event) => {
-                this.component.update({ [stateKey]: event.target[attribute] });
+                const value = event.target[attribute];
+                const keys = statePath.split('.');
+
+                // Build a nested object from the path for the update
+                // e.g., "filters.name_cont" and "1" becomes { filters: { name_cont: "1" } }
+                const newState = keys.reduceRight((acc, key) => {
+                    return { [key]: acc };
+                }, value);
+
+                this.component.update(newState);
             });
         });
     }

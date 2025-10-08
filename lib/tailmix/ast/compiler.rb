@@ -12,7 +12,7 @@ module Tailmix
       def compile_root(node)
         Root.new(
           name: node.name,
-          states: node.states,
+          states: compile_states(node.states),
           actions: compile_actions(node.actions),
           elements: compile_elements(node.elements),
           plugins: compile_plugins(node.plugins),
@@ -22,6 +22,16 @@ module Tailmix
       end
 
       private
+
+      def compile_states(state_nodes)
+        state_nodes.map do |node|
+          compiled_node = State.new(name: node.name, options: node.options)
+          if node.nested_states && !node.nested_states.empty?
+            compiled_node.nested_states = compile_states(node.nested_states)
+          end
+          compiled_node
+        end
+      end
 
       def compile_actions(nodes)
         nodes.map do |node|
@@ -131,10 +141,9 @@ module Tailmix
               expression: compile_expression(rule.state_expression),
               is_content: false
             } ]
-            # Also keep the original instruction for the client-side JS bridge
             program << [ :setup_model_binding, {
               target: compile_expression(rule.target_expression),
-              state: compile_expression(rule.state_expression),
+              state: compile_expression(rule.state_expression), # This now contains the full path
               options: rule.options
             } ]
           when EventHandlerRule

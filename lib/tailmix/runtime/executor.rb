@@ -103,16 +103,16 @@ module Tailmix
 
       def apply_model_binding(scope, set, args)
         target_path = args[:target].drop(1)
-        state_path = args[:state].drop(1)
+        state_path = args[:state].drop(1) # e.g., [:filters, :name_cont]
         attribute_name = target_path.join("-")
-        state_key = state_path.first
+        state_path_string = state_path.join(".") # "filters.name_cont"
 
         value = ExpressionExecutor.call(args[:state], scope)
 
         new_other = set.other.merge(attribute_name => value)
         new_data = set.data.merge(
           model_attr: attribute_name,
-          model_state: state_key,
+          model_state: state_path_string, # Use the full path string
           model_event: args.dig(:options, :on) || "input"
         )
         set.merge(other: new_other, data: new_data)

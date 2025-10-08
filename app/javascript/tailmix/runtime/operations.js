@@ -1,65 +1,40 @@
 import {ExpressionEvaluator} from "./expression_evaluator";
+import { buildNestedState, getStateKey, toQueryString, getCsrfToken  } from './utils';
 
 // A map to store debounce timers for each element, preventing clashes.
 const debounceTimers = new WeakMap();
 
-const getCsrfToken = () => {
-    const token = document.querySelector('meta[name="csrf-token"]');
-    return token ? token.content : null;
-}
-
-const toQueryString = (params) => {
-    return Object.entries(params)
-        .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
-        .join('&');
-}
-
-const getStateKey = (expression) => {
-    if (expression[0] !== 'state' || !expression[1]) {
-        console.warn("Tailmix: This operation currently only supports direct state properties (e.g., `state.foo`).");
-        return null;
-    }
-    return expression[1];
-}
-
-function safeReplacer() {
-    const seen = new WeakSet();
-    return function (_key, value) {
-        if (typeof value === 'function') return `[Function ${value.name || 'anonymous'}]`;
-        if (typeof value === 'bigint')   return `${value}n`;
-
-        if (value && typeof value === 'object') {
-            if (seen.has(value)) return '[Circular]';
-            seen.add(value);
-        }
-        return value;
-    };
-}
-
-function prettyJSON(value, space = 2) {
-    return JSON.stringify(value, safeReplacer(), space);
-}
-
 export const OPERATIONS = {
     set: (interpreter, instruction, scope, runtimeContext) => {
         const args = instruction.args;
-        const stateKey = getStateKey(args[0]);
-        if (!stateKey) return;
-        const evaluator = new ExpressionEvaluator(scope);
-        const value = evaluator.evaluate(args[1]);
-        if (value === undefined) {
-            console.warn(`Tailmix: 'set' for '${stateKey}' received 'undefined'. Aborting.`);
+        const statePathExpr = args[0];
+        // The path starts after the 'state' keyword
+        const statePath = statePathExpr.slice(1);
+
+        if (statePathExpr[0] !== 'state' || statePath.length === 0) {
+            console.warn("Tailmix: `set` operation requires a state property.", statePathExpr);
             return;
         }
-        runtimeContext.component.update({ [stateKey]: value });
+
+        const evaluator = new ExpressionEvaluator(scope);
+        const value = evaluator.evaluate(args[1]);
+
+        if (value === undefined) {
+            console.warn(`Tailmix: 'set' for '${statePath.join('.')}' received 'undefined'. Aborting.`);
+            return;
+        }
+
+        const newState = buildNestedState(statePath, value);
+        runtimeContext.component.update(newState);
     },
 
     toggle: (interpreter, instruction, scope, runtimeContext) => {
-        const args = instruction.args;
-        const stateKey = getStateKey(args[0]);
+        // ... (toggle logic needs a similar deep update if we want to toggle nested booleans)
+        // For now, let's assume it works on top-level state
+        const stateKey = instruction.args[0][1];
         if (!stateKey) return;
         const evaluator = new ExpressionEvaluator(scope);
-        const currentValue = evaluator.evaluate(args[0]);
+        const currentValue = evaluator.evaluate(instruction.args[0]);
         runtimeContext.component.update({ [stateKey]: !currentValue });
     },
 

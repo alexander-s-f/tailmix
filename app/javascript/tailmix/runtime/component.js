@@ -3,7 +3,7 @@ import { DOMUpdater } from './dom_updater';
 import { ActionInterpreter } from './action_interpreter';
 import { TriggerManager } from './trigger_manager';
 import { RuntimeContext } from './runtime_context';
-import { debounce } from './utils';
+import { debounce, deepMerge, prettyJSON } from './utils';
 
 export class Component {
     constructor(element, definition, dictionary) {
@@ -25,11 +25,17 @@ export class Component {
         this.performUpdate();
 
         if (this.definition.connect_instructions?.length > 0) {
-            // Run connect actions. No event or payload context.
             this.actionInterpreter.run(this.definition.connect_instructions, {}, this.runtimeContext, {});
         }
 
         console.log(`Tailmix component "${this.definition.name || 'Unnamed'}" initialized.`);
+    }
+
+    disconnect() {
+        if (this.definition.disconnect_instructions?.length > 0) {
+            this.actionInterpreter.run(this.definition.disconnect_instructions, {}, this.runtimeContext, {});
+        }
+        console.log(`Tailmix component "${this.definition.name || 'Unnamed'}" disconnected.`);
     }
 
     get state() {
@@ -37,8 +43,8 @@ export class Component {
     }
 
     update(newState) {
-        Object.assign(this._state, newState);
-        this.runtimeContext.onStateUpdate(); // Notify the context
+        this._state = deepMerge(this._state, newState);
+        this.runtimeContext.onStateUpdate();
         this.scheduleUpdate();
     }
 
@@ -78,13 +84,20 @@ export class Component {
         const initialState = JSON.parse(this.element.dataset.tailmixState || '{}');
         const stateDefs = this.definition.states || [];
 
-        for (const stateDef of stateDefs) {
-            const key = stateDef.name;
-            if (initialState[key] === undefined && stateDef.options.default !== undefined) {
-                initialState[key] = stateDef.options.default;
+        const buildState = (defs, stateSlice) => {
+            for (const stateDef of defs) {
+                const key = stateDef.name;
+                if (stateSlice[key] === undefined && stateDef.options.default !== undefined) {
+                    stateSlice[key] = stateDef.options.default;
+                }
+                if (stateDef.nested_states?.length > 0) {
+                    stateSlice[key] = stateSlice[key] || {};
+                    buildState(stateDef.nested_states, stateSlice[key]);
+                }
             }
+            return stateSlice;
         }
-        return initialState;
+        return buildState(stateDefs, initialState);
     }
 
     decompress(node) {
@@ -112,11 +125,4 @@ export class Component {
         return newNode;
     }
 
-    disconnect() {
-        if (this.definition.disconnect_instructions?.length > 0) {
-            // Run disconnect actions.
-            this.actionInterpreter.run(this.definition.disconnect_instructions, {}, this.runtimeContext, {});
-        }
-        console.log(`Tailmix component "${this.definition.name || 'Unnamed'}" disconnected.`);
-    }
 }

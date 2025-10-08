@@ -12,14 +12,8 @@ export class ExpressionEvaluator {
         const [op, ...args] = expression;
 
         // --- Property Access ---
-        if (['state', 'param', 'this', 'event'].includes(op)) {
-            const value = this.scope.find(op);
-            return args.reduce((obj, key) => obj?.[key], value);
-        }
-        if (op === 'var') {
-            const [varName, ...path] = args;
-            const value = this.scope.find(varName);
-            return path.reduce((obj, key) => obj?.[key], value);
+        if (['state', 'param', 'this', 'event', 'var'].includes(op)) {
+            return this.evaluateProperty(op, args);
         }
 
         // --- Collection Operations ---
@@ -69,6 +63,32 @@ export class ExpressionEvaluator {
                 console.warn(`Unknown expression operator: ${op}`);
                 return null;
         }
+    }
+
+    evaluateProperty(source, path) {
+        let value;
+        let propertyPath;
+
+        if (source === 'var') {
+            value = this.scope.find(path[0]);
+            propertyPath = path.slice(1);
+        } else {
+            value = this.scope.find(source);
+            propertyPath = path;
+        }
+
+        if (!propertyPath || propertyPath.length === 0) {
+            return value;
+        }
+
+        let result = value;
+        for (const key of propertyPath) {
+            if (result === null || result === undefined) {
+                return undefined;
+            }
+            result = result[key];
+        }
+        return result;
     }
 
     evaluateCollectionOperation(op, args) {

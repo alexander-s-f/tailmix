@@ -19,8 +19,9 @@ module Tailmix
         @root_node.disconnect_instructions.concat(builder.instructions)
       end
 
-      def state(name, **options)
-        @root_node.states << State.new(name: name, options: options)
+      def state(name, **options, &block)
+        nested = block ? StateBuilder.new(&block).nested_states : []
+        @root_node.states << State.new(name: name, options: options, nested_states: nested)
       end
 
       def action(name, &block)

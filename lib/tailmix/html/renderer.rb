@@ -47,7 +47,10 @@ module Tailmix
         accumulator = {}
         hash.each do |key, value|
           next if value.nil?
-          current_key = "#{prefix}-#{key.to_s.tr('_', '-')}"
+          # Ensure key does not already contain the prefix, preventing data-data-*
+          clean_key = key.to_s.gsub(/^#{prefix}-/, "").tr("_", "-")
+          current_key = "#{prefix}-#{clean_key}"
+
           serialized_value = value.is_a?(Enumerable) ? value.to_a.join(" ") : value.to_s
           accumulator[current_key] = serialized_value unless serialized_value.empty?
         end
