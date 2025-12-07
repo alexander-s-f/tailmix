@@ -2,32 +2,33 @@
 
 require_relative "tailmix/version"
 require_relative "tailmix/configuration"
+require_relative "tailmix/manifest"
 require_relative "tailmix/dsl"
-require_relative "tailmix/runtime"
-require_relative "tailmix/middleware/registry_cleaner"
-require_relative "tailmix/view_helpers"
+require_relative "tailmix/runtime/facade"
+require_relative "tailmix/component_store"
+
+ENV["TAILMIX_DEBUG"] = "true"
 
 module Tailmix
   class Error < StandardError; end
-
-  class << self
-    attr_writer :configuration
-
-    def configuration
-      @configuration ||= Configuration.new
-    end
-
-    def configure
-      yield(configuration)
-    end
-  end
 
   def self.included(base)
     base.extend(DSL)
   end
 
-  def tailmix(id: nil, **initial_state)
-    self.class.tailmix_facade_class.new(self, self.class.tailmix_definition, initial_state, id: id)
+  def tailmix(initial_state = {})
+    facade_class = self.class.tailmix_facade_class
+    raise Error, "Tailmix not defined for #{self.class}" unless facade_class
+
+    definition = facade_class.definition
+
+    # FIX: Чистим initial_state от nil значений с помощью .compact
+    # Теперь если передать { size: nil }, оно не затрет дефолтное значение.
+    cleaned_initial = initial_state.compact.transform_keys(&:to_s)
+
+    merged_state = definition[:states].merge(cleaned_initial)
+
+    facade_class.new(merged_state)
   end
 end
 

@@ -1,21 +1,57 @@
 # frozen_string_literal: true
 
+require_relative "facade"
+require_relative "../interpreter/renderer"
+
 module Tailmix
   module Runtime
     class FacadeBuilder
       def self.build(definition)
-        Class.new(Tailmix::Runtime::Context) do
-          definition.elements.each do |element|
-            define_method(element.name) do |with = {}|
-              attributes_for(element.name, with: with)
-            end
-          end
+        new(definition).build
+      end
 
-          alias_method :action, :action_proxy
+      def initialize(definition)
+        @definition = definition
+      end
 
-          def inspect
-            "#<Tailmix::UI for #{component_name} state=#{state.inspect}>"
+      def build
+        klass = Class.new(Runtime::Facade)
+
+        definition_data = @definition
+        klass.define_singleton_method(:definition) { definition_data }
+
+        define_state_accessors(klass)
+        define_element_methods(klass)
+        # todo: define_action_methods(klass)..
+
+        klass
+      end
+
+      private
+
+      def define_element_methods(klass)
+        @definition[:elements].each do |element_def|
+          method_name = element_def[:name]
+
+          klass.define_method(method_name) do |param = {}|
+            Interpreter::Renderer.render(
+              element_def,
+              state: @state,
+              param: param,
+              component_context: self
+            )
           end
+        end
+      end
+
+      def define_state_accessors(klass)
+        state_keys = @definition[:states].keys.map(&:to_sym)
+        return if state_keys.empty?
+
+        state_struct = Struct.new(*state_keys)
+
+        klass.define_method(:state) do
+          @state_wrapper ||= state_struct.new(*@state.values_at(*state_keys.map(&:to_s)))
         end
       end
     end
