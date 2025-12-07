@@ -1,81 +1,77 @@
 import { Component } from './component';
 
+var globalNamespace = (typeof window !== "undefined" && window.Tailmix) ? window.Tailmix : {};
+
 const Tailmix = {
-    _definitions: {},
-    _dictionary: [],
-    _components: new Map(),
-    _observer: null,
+    definitions: globalNamespace.definitions || {},
+
+    instances: new WeakMap(),
+    booted: false,
+    observer: null,
 
     start() {
-        this.loadDefinitions();
-        this.hydrate(document.body);
-        this.observe(); // Start observing for changes
+        if (this.booted) return;
+        this.booted = true;
+
+        if (window.Tailmix?.definitions) {
+            Object.assign(this.definitions, window.Tailmix.definitions);
+        }
+
+        this.boot();
+        this.observe();
+        this.log('info', `Started with ${Object.keys(this.definitions).length} definitions`);
     },
 
-    loadDefinitions() {
-        const definitionsTag = document.querySelector('script[data-tailmix-definitions]');
-        if (definitionsTag) {
-            try {
-                const payload = JSON.parse(definitionsTag.textContent);
-                this._dictionary = payload.dictionary || [];
-                this._definitions = payload.components || {};
-            } catch (e) {
-                console.error("Tailmix: Failed to parse definitions.", e);
-            }
+    stop() {
+        if (!this.booted) return;
+        this.observer?.disconnect();
+        booted = false;
+        this.log('info', 'Stopped');
+    },
+
+    log(level, ...args) {
+        if (window.TAILMIX_DEBUG) {
+            // levels: debug/info/warn/error
+            console[level === 'debug' ? 'log' : level]?.('[Tailmix]', ...args);
         }
     },
 
-    hydrate(rootElement) {
-        const componentElements = rootElement.querySelectorAll('[data-tailmix-component]');
-        componentElements.forEach(element => {
-            if (this._components.has(element)) return;
-
-            const componentName = element.dataset.tailmixComponent;
-            const definition = this._definitions[componentName];
-            if (!definition) return;
-
-            const component = new Component(element, definition, this._dictionary);
-            this._components.set(element, component); // Store component instance
+    observe() {
+        this.observer = new MutationObserver((mutations) => {
+            let shouldBoot = false;
+            for (const m of mutations) {
+                if ([...m.addedNodes].some(n => n.nodeType === 1 && n.matches?.('[data-tailmix]'))) {
+                    shouldBoot = true; break;
+                }
+            }
+            if (shouldBoot) this.boot();
         });
+        this.observer.observe(document.documentElement, { childList: true, subtree: true });
     },
 
-    observe() {
-        if (this._observer) this._observer.disconnect();
+    boot(root = document) {
+        const componentRoots = root.querySelectorAll('[data-tailmix-component]');
+        componentRoots.forEach(element => {
+            if (this.instances.has(element)) return;
 
-        this._observer = new MutationObserver(mutations => {
-            for (const mutation of mutations) {
-                // When new nodes are added, hydrate them
-                mutation.addedNodes.forEach(node => {
-                    if (node.nodeType === Node.ELEMENT_NODE) {
-                        if (node.hasAttribute('data-tailmix-component')) {
-                            this.hydrate(node);
-                        }
-                        this.hydrate(node);
-                    }
-                });
+            const name = element.dataset.tailmixComponent;
+            const definition = this.definitions[name];
 
-                // When nodes are removed, disconnect them
-                mutation.removedNodes.forEach(node => {
-                    if (node.nodeType === Node.ELEMENT_NODE) {
-                        const componentElement = node.hasAttribute('data-tailmix-component') ? node : node.querySelector('[data-tailmix-component]');
-                        if (componentElement && this._components.has(componentElement)) {
-                            this._components.get(componentElement).disconnect();
-                            this._components.delete(componentElement);
-                        }
-                    }
-                });
+            if (definition) {
+                const instance = new Component(element, definition);
+                this.instances.set(element, instance);
+            } else {
+                console.warn(`[Tailmix] Definition for "${name}" not found.`);
             }
         });
-
-        this._observer.observe(document.body, {
-            childList: true,
-            subtree: true
-        });
-    }
+    },
 };
 
-document.addEventListener("turbo:load", () => {
-    Tailmix.start();
-});
+if (typeof window !== 'undefined') {
+    window.Tailmix = Object.assign(window.Tailmix || {}, Tailmix);
+
+    document.addEventListener("DOMContentLoaded", () => Tailmix.start());
+    document.addEventListener("turbo:load", () => Tailmix.start());
+}
 
 export default Tailmix;
