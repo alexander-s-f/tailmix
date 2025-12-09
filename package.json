@@ -1,0 +1,16 @@
+{
+  "name": "tailmix",
+  "private": true,
+  "devDependencies": {
+    "esbuild": "^0.24.0"
+  },
+  "main": "app/javascript/tailmix/index.js",
+  "files": [
+    "app/javascript"
+  ],
+  "scripts": {
+    "build": "esbuild app/javascript/tailmix/runtime/index.js --bundle --format=iife --global-name=Tailmix --platform=browser --target=es2018 --outfile=app/assets/javascripts/tailmix/tailmix.bundle.js --minify --sourcemap",
+    "dev": "esbuild app/javascript/tailmix/runtime/index.js --bundle --format=iife --global-name=Tailmix --platform=browser --target=es2018 --outfile=app/assets/javascripts/tailmix/tailmix.bundle.js --sourcemap",
+    "watch": "npm run dev -- --watch"
+  }
+}
