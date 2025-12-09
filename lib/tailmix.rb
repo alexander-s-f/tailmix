@@ -2,7 +2,6 @@
 
 require_relative "tailmix/version"
 require_relative "tailmix/configuration"
-require_relative "tailmix/manifest"
 require_relative "tailmix/dsl"
 require_relative "tailmix/runtime/facade"
 require_relative "tailmix/component_store"
