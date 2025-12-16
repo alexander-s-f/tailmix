@@ -46,6 +46,14 @@ export class Evaluator {
             // Helpers
             case 'concat': return String(this.evaluate(arg1)) + String(this.evaluate(arg2));
 
+            // switch (op)
+            case 'event':
+                return this.scope.resolve('event', arg1); // arg1 = "value"
+
+            case 'len':
+                const val = this.evaluate(arg1);
+                return val ? String(val).length : 0;
+
             default:
                 console.warn(`[Tailmix] Unknown opcode: ${op}`);
                 return null;

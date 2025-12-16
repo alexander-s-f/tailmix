@@ -23,6 +23,150 @@ var Tailmix = (() => {
     default: () => index_default
   });
 
+  // app/javascript/tailmix/runtime/persistence.js
+  var PersistenceManager = class {
+    constructor(component) {
+      this.component = component;
+      this.config = component.definition.persistence || {};
+      this.listeners = [];
+    }
+    // Called when the component starts
+    // Returns an object that should be "mixed" into the initial state
+    loadOverrides() {
+      const overrides = {};
+      for (const [stateName, setting] of Object.entries(this.config)) {
+        const strategy = this.getStrategy(setting.type);
+        const value = strategy.read(setting.key);
+        if (value !== null && value !== void 0) {
+          overrides[stateName] = value;
+        }
+      }
+      return overrides;
+    }
+    // Called when the state is updated
+    save(newStatePatch) {
+      for (const [stateName, newValue] of Object.entries(newStatePatch)) {
+        const setting = this.config[stateName];
+        if (setting) {
+          const strategy = this.getStrategy(setting.type);
+          strategy.write(setting.key, newValue);
+        }
+      }
+    }
+    // Listening for external changes (Back button, URL change, localStorage change in another tab)
+    bindListeners() {
+      const hasUrlState = Object.values(this.config).some((c) => ["hash", "query"].includes(c.type));
+      if (hasUrlState) {
+        const onPopState = () => {
+          const patch = this.loadOverrides();
+          if (Object.keys(patch).length > 0) {
+            this.component.update(patch, { skipPersistence: true });
+          }
+        };
+        window.addEventListener("popstate", onPopState);
+        window.addEventListener("hashchange", onPopState);
+        this.listeners.push(() => {
+          window.removeEventListener("popstate", onPopState);
+          window.removeEventListener("hashchange", onPopState);
+        });
+      }
+      const hasLocalState = Object.values(this.config).some((c) => c.type === "local");
+      if (hasLocalState) {
+        const onStorage = (e) => {
+          const relevantKeys = Object.values(this.config).filter((c) => c.type === "local").map((c) => c.key);
+          if (relevantKeys.includes(e.key)) {
+            const patch = this.loadOverrides();
+            this.component.update(patch, { skipPersistence: true });
+          }
+        };
+        window.addEventListener("storage", onStorage);
+        this.listeners.push(() => window.removeEventListener("storage", onStorage));
+      }
+    }
+    disconnect() {
+      this.listeners.forEach((cleanup) => cleanup());
+    }
+    getStrategy(type) {
+      switch (type) {
+        case "hash":
+          return HashStrategy;
+        case "query":
+          return QueryStrategy;
+        case "local":
+          return LocalStorageStrategy;
+        case "session":
+          return SessionStorageStrategy;
+        default:
+          return { read: () => null, write: () => {
+          } };
+      }
+    }
+  };
+  var HashStrategy = {
+    read(key) {
+      const hash = window.location.hash.substring(1);
+      if (!hash) return null;
+      const params = new URLSearchParams(hash);
+      return params.get(key) || (hash.includes("=") ? null : hash);
+    },
+    write(key, value) {
+      const hash = window.location.hash.substring(1);
+      const params = new URLSearchParams(hash.includes("=") ? hash : "");
+      if (value) {
+        params.set(key, value);
+      } else {
+        params.delete(key);
+      }
+      const newHash = params.toString();
+      if (newHash !== hash) {
+        window.history.pushState(null, "", "#" + newHash);
+      }
+    }
+  };
+  var QueryStrategy = {
+    read(key) {
+      const params = new URLSearchParams(window.location.search);
+      return params.get(key);
+    },
+    write(key, value) {
+      const url = new URL(window.location);
+      if (value) {
+        url.searchParams.set(key, value);
+      } else {
+        url.searchParams.delete(key);
+      }
+      window.history.pushState(null, "", url);
+    }
+  };
+  var LocalStorageStrategy = {
+    read(key) {
+      try {
+        return JSON.parse(window.localStorage.getItem(key));
+      } catch (e) {
+        return window.localStorage.getItem(key);
+      }
+    },
+    write(key, value) {
+      if (value === null || value === void 0) {
+        window.localStorage.removeItem(key);
+      } else {
+        window.localStorage.setItem(key, JSON.stringify(value));
+      }
+    }
+  };
+  var SessionStorageStrategy = {
+    read(key) {
+      try {
+        return JSON.parse(window.sessionStorage.getItem(key));
+      } catch (e) {
+        return null;
+      }
+    },
+    write(key, value) {
+      window.sessionStorage.setItem(key, JSON.stringify(value));
+    }
+  };
+
   // app/javascript/tailmix/interpreter/scope.js
   var Scope = class {
     constructor(state = {}, param = {}, element = null) {
@@ -47,6 +191,12 @@ var Tailmix = (() => {
         case "local":
           root = this.locals;
           break;
+        case "event":
+          if (!this.locals.event) return null;
+          if (pathString === "value" && this.locals.event.target) {
+            return this.locals.event.target.value;
+          }
+          return this.locals.event[pathString];
         default:
           return null;
       }
@@ -110,6 +260,13 @@ var Tailmix = (() => {
         // Helpers
         case "concat":
           return String(this.evaluate(arg1)) + String(this.evaluate(arg2));
+        // switch (op)
+        case "event":
+          return this.scope.resolve("event", arg1);
+        // arg1 = "value"
+        case "len":
+          const val = this.evaluate(arg1);
+          return val ? String(val).length : 0;
         default:
           console.warn(`[Tailmix] Unknown opcode: ${op}`);
           return null;
@@ -192,6 +349,12 @@ var Tailmix = (() => {
           acc.aria[key] = this.evaluator.evaluate(expr);
         }
       }
+      if (effect.p) {
+        acc.props = acc.props || {};
+        for (const [key, expr] of Object.entries(effect.p)) {
+          acc.props[key] = this.evaluator.evaluate(expr);
+        }
+      }
     }
     mergeExtraAttributes(acc) {
       for (const [key, value] of Object.entries(this.extraAttributes)) {
@@ -242,6 +405,23 @@ var Tailmix = (() => {
         } else {
           if (element.getAttribute(key) !== String(value)) {
             element.setAttribute(key, String(value));
+          }
+        }
+      }
+      if (result.props) {
+        for (const [key, value] of Object.entries(result.props)) {
+          if (key === "value" && element.tagName === "INPUT") {
+            if (element.value !== String(value)) {
+              element.value = String(value);
+            }
+          } else if (key === "checked") {
+            element.checked = !!value;
+          } else if (key === "disabled") {
+            element.disabled = !!value;
+          } else {
+            if (element.getAttribute(key) !== String(value)) {
+              element.setAttribute(key, String(value));
+            }
           }
         }
       }
@@ -322,15 +502,22 @@ var Tailmix = (() => {
     constructor(element, definition) {
       this.element = element;
       this.definition = definition;
-      this.state = this.loadInitialState();
+      this.persistence = new PersistenceManager(this);
+      this.state = this.initializeState();
       this.interpreter = new ActionInterpreter(this);
+      this.persistence.bindListeners();
       this.update = this.update.bind(this);
       this.eventControllers = /* @__PURE__ */ new WeakMap();
       this.bindEvents();
       this.render();
       console.log(`[Tailmix] Component "${this.definition.name}" hydrated.`);
     }
-    loadInitialState() {
+    initializeState() {
+      const domState = this.loadInitialStateFromDOM();
+      const persistedState = this.persistence.loadOverrides();
+      return { ...domState, ...persistedState };
+    }
+    loadInitialStateFromDOM() {
       const json = this.element.dataset.tailmixState;
       try {
         return json ? JSON.parse(json) : {};
@@ -339,8 +526,11 @@ var Tailmix = (() => {
         return {};
       }
     }
-    update(newStatePatch = {}) {
+    update(newStatePatch = {}, options = {}) {
       this.state = deepMerge(this.state, newStatePatch);
+      if (!options.skipPersistence) {
+        this.persistence.save(newStatePatch);
+      }
       this.element.dataset.tailmixState = JSON.stringify(this.state);
       this.render();
     }
@@ -384,6 +574,9 @@ var Tailmix = (() => {
         const result = Renderer.calculate(elementDef, this.state, param, node);
         DOMPatcher.patch(node, result);
       });
+    }
+    disconnect() {
+      this.persistence.disconnect();
     }
   };
 

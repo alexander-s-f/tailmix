@@ -95,6 +95,15 @@ export class Renderer {
                 acc.aria[key] = this.evaluator.evaluate(expr);
             }
         }
+
+        // Props (value, checked, selected, disabled...)
+        if (effect.p) {
+            // We collect them into a separate category so that DOMPatcher knows that these are properties.
+            acc.props = acc.props || {};
+            for (const [key, expr] of Object.entries(effect.p)) {
+                acc.props[key] = this.evaluator.evaluate(expr);
+            }
+        }
     }
 
     mergeExtraAttributes(acc) {

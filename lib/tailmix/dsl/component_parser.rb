@@ -28,12 +28,18 @@ module Tailmix
       end
 
       # DSL: state :count, default: 0
-      def state(name, default:, **options)
-        @states << AST::StateDefinition.new(
-          name: name,
-          default_value: default,
-          type: options[:type] || :any
-        )
+      # persist: :hash-> by default the key is equal to the state name
+      # persist: { type: :hash key: "t" } -> custom key
+      def state(name, default: nil, persist: nil)
+        persistence_config = if persist.is_a?(Symbol) || persist.is_a?(String)
+          { type: persist.to_sym, key: name.to_s }
+        elsif persist.is_a?(Hash)
+          { type: persist[:type].to_sym, key: (persist[:key] || name).to_s }
+        else
+          nil
+        end
+
+        @states << AST::StateDefinition.new(name, default, persistence: persistence_config)
       end
 
       # DSL: element :button do ... end
@@ -49,6 +55,12 @@ module Tailmix
           attributes: attributes,
           rules: parser.rules
         )
+      end
+
+      def event
+        # Returns an AST node reference to the event
+        # In JSON this will be [:event, "value"] (or other fields, if we extend it)
+        AST::EventReference.new
       end
     end
   end

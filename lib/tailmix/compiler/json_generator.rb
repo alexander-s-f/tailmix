@@ -14,8 +14,12 @@ module Tailmix
       def visit_Component(node)
         {
           name: node.name,
-          # Keys for states map are strings
           states: node.states.each_with_object({}) { |s, h| h[s.name.to_s] = visit(s) },
+
+          persistence: node.states.each_with_object({}) { |s, h|
+            h[s.name.to_s] = s.persistence if s.persistence
+          },
+
           elements: visit_all(node.elements),
           boot: visit(node.boot_sequence)
         }
@@ -82,6 +86,11 @@ module Tailmix
         # Aria -> Hash values compiled
         unless node.aria.empty?
           payload["a"] = node.aria.transform_keys(&:to_s).transform_values { |v| visit(v) }
+        end
+
+        # Props -> Hash values compiled
+        unless node.props.empty?
+          payload["p"] = node.props.transform_keys(&:to_s).transform_values { |v| visit(v) }
         end
 
         payload

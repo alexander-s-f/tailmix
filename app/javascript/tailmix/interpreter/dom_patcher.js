@@ -39,5 +39,31 @@ export class DOMPatcher {
                 }
             }
         }
+
+        // 5. Properties (value, checked, etc.)
+        // result.props come from Renderer
+        if (result.props) {
+            for (const [key, value] of Object.entries(result.props)) {
+                // Special handling for 'value' to prevent cursor reset
+                if (key === 'value' && element.tagName === 'INPUT') {
+                    // Update only if the actual value differs
+                    if (element.value !== String(value)) {
+                        element.value = String(value);
+                    }
+                }
+                else if (key === 'checked') {
+                    element.checked = !!value;
+                }
+                else if (key === 'disabled') {
+                    element.disabled = !!value;
+                }
+                else {
+                    // Fallback for other attributes (src, href)
+                    if (element.getAttribute(key) !== String(value)) {
+                        element.setAttribute(key, String(value));
+                    }
+                }
+            }
+        }
     }
 }

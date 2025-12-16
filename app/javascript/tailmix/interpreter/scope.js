@@ -24,6 +24,16 @@ export class Scope {
             case 'local':
                 root = this.locals;
                 break;
+            case 'event':
+                // pathString: "value", "target.value", "type"
+                if (!this.locals.event) return null;
+
+                // Simplification: if "value" is requested, return event.target.value for input events
+                if (pathString === 'value' && this.locals.event.target) {
+                    return this.locals.event.target.value;
+                }
+                // It is possible to add access to keys, preventDefault, etc.
+                return this.locals.event[pathString];
             default:
                 return null;
         }

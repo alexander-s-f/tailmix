@@ -1,3 +1,4 @@
+import { PersistenceManager } from './persistence';
 import { Renderer } from '../interpreter/renderer';
 import { DOMPatcher } from '../interpreter/dom_patcher';
 import { ActionInterpreter } from '../interpreter/action_interpreter';
@@ -8,8 +9,10 @@ export class Component {
     constructor(element, definition) {
         this.element = element;
         this.definition = definition;
-        this.state = this.loadInitialState();
+        this.persistence = new PersistenceManager(this);
+        this.state = this.initializeState();
         this.interpreter = new ActionInterpreter(this);
+        this.persistence.bindListeners();
         this.update = this.update.bind(this);
         this.eventControllers = new WeakMap();
         this.bindEvents();
@@ -18,7 +21,16 @@ export class Component {
         console.log(`[Tailmix] Component "${this.definition.name}" hydrated.`);
     }
 
-    loadInitialState() {
+    initializeState() {
+        const domState = this.loadInitialStateFromDOM();
+
+        const persistedState = this.persistence.loadOverrides();
+
+        // Server Defaults -> DOM State -> Persisted State
+        return { ...domState, ...persistedState };
+    }
+
+    loadInitialStateFromDOM() {
         const json = this.element.dataset.tailmixState;
         try {
             return json ? JSON.parse(json) : {};
@@ -28,8 +40,12 @@ export class Component {
         }
     }
 
-    update(newStatePatch = {}) {
+    update(newStatePatch = {}, options = {}) {
         this.state = deepMerge(this.state, newStatePatch);
+
+        if (!options.skipPersistence) {
+            this.persistence.save(newStatePatch);
+        }
 
         this.element.dataset.tailmixState = JSON.stringify(this.state);
         this.render();
@@ -86,5 +102,9 @@ export class Component {
             const result = Renderer.calculate(elementDef, this.state, param, node);
             DOMPatcher.patch(node, result);
         });
+    }
+
+    disconnect() {
+        this.persistence.disconnect();
     }
 }

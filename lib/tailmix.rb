@@ -20,11 +20,7 @@ module Tailmix
     raise Error, "Tailmix not defined for #{self.class}" unless facade_class
 
     definition = facade_class.definition
-
-    # FIX: Чистим initial_state от nil значений с помощью .compact
-    # Теперь если передать { size: nil }, оно не затрет дефолтное значение.
     cleaned_initial = initial_state.compact.transform_keys(&:to_s)
-
     merged_state = definition[:states].merge(cleaned_initial)
 
     facade_class.new(merged_state)

@@ -113,6 +113,14 @@ module Tailmix
             acc[:aria][k] = @evaluator.evaluate(v_expr)
           end
         end
+
+        if effect["p"]
+          effect["p"].each do |k, v_expr|
+            val = @evaluator.evaluate(v_expr)
+            # For server-side rendering, props are converted into ordinary attributes.
+            acc[:other][k] = val
+          end
+        end
       end
 
       def merge_extra_attributes(acc, final_attrs)
