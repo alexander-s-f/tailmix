@@ -28,16 +28,17 @@ var Tailmix = (() => {
     constructor(component) {
       this.component = component;
       this.config = component.definition.persistence || {};
+      this.types = component.definition.types || {};
       this.listeners = [];
     }
-    // Called when the component starts
-    // Returns an object that should be "mixed" into the initial state
     loadOverrides() {
       const overrides = {};
       for (const [stateName, setting] of Object.entries(this.config)) {
         const strategy = this.getStrategy(setting.type);
-        const value = strategy.read(setting.key);
+        let value = strategy.read(setting.key);
         if (value !== null && value !== void 0) {
+          const type = this.types[stateName] || "string";
+          value = this.cast(value, type);
           overrides[stateName] = value;
         }
       }
@@ -81,6 +82,26 @@ var Tailmix = (() => {
         };
         window.addEventListener("storage", onStorage);
         this.listeners.push(() => window.removeEventListener("storage", onStorage));
+      }
+    }
+    cast(value, type) {
+      if (value === null || value === void 0) return value;
+      switch (type) {
+        case "integer":
+          return parseInt(value, 10);
+        case "float":
+          return parseFloat(value);
+        case "boolean":
+          return value === "true" || value === "1" || value === true || value === 1;
+        case "json":
+          if (typeof value === "object") return value;
+          try {
+            return JSON.parse(value);
+          } catch (e) {
+            return null;
+          }
+        default:
+          return String(value);
       }
     }
     disconnect() {
