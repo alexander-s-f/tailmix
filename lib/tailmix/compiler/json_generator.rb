@@ -14,7 +14,10 @@ module Tailmix
       def visit_Component(node)
         {
           name: node.name,
+          # Default values
           states: node.states.each_with_object({}) { |s, h| h[s.name.to_s] = visit(s) },
+
+          types: node.states.each_with_object({}) { |s, h| h[s.name.to_s] = s.type },
 
           persistence: node.states.each_with_object({}) { |s, h|
             h[s.name.to_s] = s.persistence if s.persistence

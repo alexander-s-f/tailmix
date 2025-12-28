@@ -27,40 +27,44 @@ module Tailmix
         )
       end
 
-      # DSL: state :count, default: 0
-      # persist: :hash-> by default the key is equal to the state name
-      # persist: { type: :hash key: "t" } -> custom key
-      def state(name, default: nil, persist: nil)
-        persistence_config = if persist.is_a?(Symbol) || persist.is_a?(String)
-          { type: persist.to_sym, key: name.to_s }
-        elsif persist.is_a?(Hash)
+      # DSL: state :counter, default: 0
+      # DSL: state :active, default: true (type: :boolean)
+      # DSL: state :price, default: nil, type: :float
+      def state(name, default: nil, persist: nil, type: nil)
+        # 1. Нормализация Persistence (как было)
+        persistence_config = if persist.is_a?(Hash)
           { type: persist[:type].to_sym, key: (persist[:key] || name).to_s }
-        else
-          nil
+        elsif persist
+          { type: persist.to_sym, key: name.to_s }
         end
 
-        @states << AST::StateDefinition.new(name, default, persistence: persistence_config)
+        # 2. (Type Inference)
+        inferred_type = type
+        if inferred_type.nil? && !default.nil?
+          inferred_type = case default
+          when Integer then :integer
+          when Float then :float
+          when TrueClass, FalseClass then :boolean
+          when Hash, Array then :json
+          else :string
+          end
+        end
+
+        # If the type is not specified and the default is nil, we consider it a string.
+        inferred_type ||= :string
+
+        @states << AST::StateDefinition.new(name, default, persistence: persistence_config, type: inferred_type)
       end
 
-      # DSL: element :button do ... end
       def element(name, base_classes = "", &block)
-        parser = ElementParser.new(&block)
-
-        # Base classes can also be considered StyleRule with the condition true,
-        # but for simplicity we will put them in attributes for now
-        attributes = base_classes.empty? ? {} : { class: base_classes }
+        # Delegate element parsing to a dedicated class
+        parser = ElementParser.new(base_classes, &block)
 
         @elements << AST::ElementDefinition.new(
           name: name,
-          attributes: attributes,
+          attributes: {}, # Static attributes can be extracted, but for now everything is through rules
           rules: parser.rules
         )
-      end
-
-      def event
-        # Returns an AST node reference to the event
-        # In JSON this will be [:event, "value"] (or other fields, if we extend it)
-        AST::EventReference.new
       end
     end
   end

@@ -6,8 +6,10 @@ require_relative "expression"
 module Tailmix
   module DSL
     class ParserContext
-      # Helper to access state.foo
+      # Helper functions for creating AST nodes for variables
+
       def state
+        # Returns a proxy object that, when state.name is accessed, will return VariableReference
         VariableProxy.new(:state)
       end
 
@@ -15,35 +17,19 @@ module Tailmix
         VariableProxy.new(:param)
       end
 
-      # Converts Ruby values or Expressions into raw AST::Node
-      def unwrap(value)
-        case value
-        when Expression then value.node
-        when AST::Node then value
-        else AST::Literal.new(value: value)
-        end
+      def event
+        # AST node for accessing event (event.value)
+        AST::VariableReference.new(domain: :event, path: [])
       end
 
-      def this
-        VariableProxy.new(:this)
-      end
-
-      # Helper class for building paths (state.users.active)
+      # Helper class for state.active syntax
       class VariableProxy
-        def initialize(domain, path = [])
+        def initialize(domain)
           @domain = domain
-          @path = path
         end
 
         def method_missing(name, *args)
-          new_path = @path + [name]
-          # If there are no arguments, we continue building the path.
-          # But if this is the end of the chain for the expression, return Expression.
-          # In Ruby, it's difficult to tell if it's the "end," so we consider any call
-          # a valid expression.
-          Expression.new(
-            AST::VariableReference.new(domain: @domain, path: new_path)
-          )
+          AST::VariableReference.new(domain: @domain, path: [name.to_s])
         end
       end
     end

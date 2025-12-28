@@ -2,17 +2,7 @@
 
 module Tailmix
   module AST
-    class Node
-      def accept(visitor)
-        visitor.visit(self)
-      end
-
-      def type_name
-        self.class.name.split("::").last
-      end
-    end
-
-    # Mixin for convenience, to avoid duplicating accept in each class
+    # Mixin with common logic
     module NodeMethods
       def accept(visitor)
         visitor.visit(self)
@@ -21,6 +11,95 @@ module Tailmix
       def type_name
         self.class.name.split("::").last
       end
+
+      # Sugar to create a MethodCall node directly from an AST node
+      # Allows writing in DSL: state.query.length
+      def length
+        MethodCall.new(object: self, method: :length, arguments: [])
+      end
+
+      def +(other)
+        binary_op(:add, other)
+      end
+
+      def -(other)
+        binary_op(:sub, other)
+      end
+
+      def *(other)
+        binary_op(:mul, other)
+      end
+
+      def /(other)
+        binary_op(:div, other)
+      end
+
+      # --- Comparison Operators ---
+
+      # In Ruby, overloading == is dangerous for hashes, but for DSL objects within Struct
+      # it is permissible if we understand the consequences.
+      # We want to write: condition: state.active == param.id
+      def ==(other)
+        binary_op(:eq, other)
+      end
+
+      def !=(other)
+        binary_op(:neq, other)
+      end
+
+      def >(other)
+        binary_op(:gt, other)
+      end
+
+      def <(other)
+        binary_op(:lt, other)
+      end
+
+      def >=(other)
+        binary_op(:gte, other)
+      end
+
+      def <=(other)
+        binary_op(:lte, other)
+      end
+
+      # --- Logical Operators ---
+
+      # Ruby does not allow overloading && and ||.
+      # We use bitwise operators & and | or named methods.
+
+      def &(other)
+        binary_op(:and, other)
+      end
+      alias_method :and, :&
+
+      def |(other)
+        binary_op(:or, other)
+      end
+      alias_method :or, :|
+
+      # Helper for negation (!state.active)
+      def !
+        UnaryOp.new(operator: :not, operand: self)
+      end
+
+      private
+
+      def binary_op(operator, right)
+        # If the right-hand side is a simple number/string, wrap it in Literal.
+        # This simplifies the JSON generator.
+        right_node = if right.is_a?(NodeMethods) # Checking if this is an AST node
+          right
+        else
+          Literal.new(value: right)
+        end
+
+        BinaryOp.new(left: self, operator: operator, right: right_node)
+      end
+    end
+
+    class Node
+      include NodeMethods
     end
 
     # --- 1. Definitions ---
@@ -28,18 +107,15 @@ module Tailmix
       include NodeMethods
     end
 
-    # StateDefinition = Struct.new(:name, :default_value, :type, keyword_init: true) do
-    #   include NodeMethods
-    # end
-
     class StateDefinition
       include NodeMethods
-      attr_reader :name, :default_value, :persistence
+      attr_reader :name, :default_value, :persistence, :type
 
-      def initialize(name, default_value, persistence: nil)
+      def initialize(name, default_value, persistence: nil, type: nil)
         @name = name
         @default_value = default_value
-        @persistence = persistence # {:type => :hash, :key => "tab"}
+        @persistence = persistence
+        @type = type
       end
     end
 
@@ -48,7 +124,7 @@ module Tailmix
     end
 
     # --- 2. Rules ---
-    AttributeEffect = Struct.new(:classes, :data, :aria, :other, keyword_init: true) do
+    AttributeEffect = Struct.new(:classes, :data, :aria, :props, :other, keyword_init: true) do
       include NodeMethods
     end
 
@@ -82,6 +158,8 @@ module Tailmix
       include NodeMethods
     end
 
+    # We use this same node for state.active and event.value
+    # event.value -> domain: :event, path: ["value"]
     VariableReference = Struct.new(:domain, :path, keyword_init: true) do
       include NodeMethods
     end
@@ -94,10 +172,17 @@ module Tailmix
       include NodeMethods
     end
 
+    # Method invocation node (e.g., .length)
+    MethodCall = Struct.new(:object, :method, :arguments, keyword_init: true) do
+      include NodeMethods
+    end
+
     # Connect the module to all structures
     constants.each do |const|
       klass = const_get(const)
-      klass.include(NodeMethods) if klass.is_a?(Class) && klass < Struct
+      if klass.is_a?(Class) && klass < Struct
+        klass.include(NodeMethods)
+      end
     end
   end
 end
