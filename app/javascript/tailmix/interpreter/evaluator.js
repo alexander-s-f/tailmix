@@ -8,7 +8,8 @@ export class Evaluator {
             return expr;
         }
 
-        const [op, arg1, arg2] = expr;
+        const [op, ...args] = expr;
+        const [arg1, arg2] = args;
 
         switch (op) {
             // Variables
@@ -16,6 +17,12 @@ export class Evaluator {
             case 'param':
             case 'this':
                 return this.scope.resolve(op, arg1);
+            case 'get': return this.evaluate(op)[this.evaluate(arg1)];
+            case 'local':
+                return this.scope.resolve({ domain: op, path: args });
+            // switch (op)
+            case 'event':
+                return this.scope.resolve('event', arg1); // arg1 = "value"
 
             // Logic
             case 'eq':
@@ -45,11 +52,6 @@ export class Evaluator {
 
             // Helpers
             case 'concat': return String(this.evaluate(arg1)) + String(this.evaluate(arg2));
-
-            // switch (op)
-            case 'event':
-                return this.scope.resolve('event', arg1); // arg1 = "value"
-
             case 'len':
                 const val = this.evaluate(arg1);
                 return val ? String(val).length : 0;

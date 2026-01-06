@@ -104,6 +104,10 @@ export class Renderer {
                 acc.props[key] = this.evaluator.evaluate(expr);
             }
         }
+
+        if (effect.h) {
+            acc.html = this.evaluator.evaluate(effect.h);
+        }
     }
 
     mergeExtraAttributes(acc) {

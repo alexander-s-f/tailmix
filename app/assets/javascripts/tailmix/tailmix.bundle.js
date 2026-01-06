@@ -189,15 +189,24 @@ var Tailmix = (() => {
   };
 
   // app/javascript/tailmix/interpreter/scope.js
-  var Scope = class {
+  var Scope = class _Scope {
     constructor(state = {}, param = {}, element = null) {
       this.state = state;
       this.param = param;
       this.element = element;
       this.locals = {};
     }
-    resolve(domain, pathString) {
+    // pathArg can be a string ("user.name") or an array (["user", "name"])
+    resolve(domain, pathArg) {
       let root;
+      let keys = [];
+      if (Array.isArray(pathArg)) {
+        keys = pathArg;
+      } else if (typeof pathArg === "string") {
+        keys = pathArg.split(".");
+      } else if (pathArg === void 0 || pathArg === null) {
+        keys = [];
+      }
       switch (domain) {
         case "state":
           root = this.state;
@@ -205,24 +214,24 @@ var Tailmix = (() => {
         case "param":
           root = this.param;
           break;
+        case "local":
+          root = this.locals;
+          break;
         case "this":
           if (!this.element) return null;
           root = this.element;
           break;
-        case "local":
-          root = this.locals;
-          break;
         case "event":
           if (!this.locals.event) return null;
-          if (pathString === "value" && this.locals.event.target) {
+          const key = keys[0];
+          if (key === "value" && this.locals.event.target) {
             return this.locals.event.target.value;
           }
-          return this.locals.event[pathString];
+          return this.locals.event[key];
         default:
           return null;
       }
-      if (!pathString) return root;
-      const keys = pathString.split(".");
+      if (keys.length === 0) return root;
       let current = root;
       for (const key of keys) {
         if (current === null || current === void 0) {
@@ -231,6 +240,11 @@ var Tailmix = (() => {
         current = current[key];
       }
       return current;
+    }
+    clone() {
+      const s = new _Scope(this.state, this.param, this.element);
+      s.locals = { ...this.locals };
+      return s;
     }
   };
 
@@ -243,13 +257,22 @@ var Tailmix = (() => {
       if (!Array.isArray(expr)) {
         return expr;
       }
-      const [op, arg1, arg2] = expr;
+      const [op, ...args] = expr;
+      const [arg1, arg2] = args;
       switch (op) {
         // Variables
         case "state":
         case "param":
         case "this":
           return this.scope.resolve(op, arg1);
+        case "get":
+          return this.evaluate(op)[this.evaluate(arg1)];
+        case "local":
+          return this.scope.resolve({ domain: op, path: args });
+        // switch (op)
+        case "event":
+          return this.scope.resolve("event", arg1);
+        // arg1 = "value"
         // Logic
         case "eq":
           return this.evaluate(arg1) == this.evaluate(arg2);
@@ -281,10 +304,6 @@ var Tailmix = (() => {
         // Helpers
         case "concat":
           return String(this.evaluate(arg1)) + String(this.evaluate(arg2));
-        // switch (op)
-        case "event":
-          return this.scope.resolve("event", arg1);
-        // arg1 = "value"
         case "len":
           const val = this.evaluate(arg1);
           return val ? String(val).length : 0;
@@ -376,6 +395,9 @@ var Tailmix = (() => {
           acc.props[key] = this.evaluator.evaluate(expr);
         }
       }
+      if (effect.h) {
+        acc.html = this.evaluator.evaluate(effect.h);
+      }
     }
     mergeExtraAttributes(acc) {
       for (const [key, value] of Object.entries(this.extraAttributes)) {
@@ -446,6 +468,12 @@ var Tailmix = (() => {
           }
         }
       }
+      if (result.html !== void 0 && result.html !== null) {
+        const newHtml = String(result.html);
+        if (element.innerHTML !== newHtml) {
+          element.innerHTML = newHtml;
+        }
+      }
     }
   };
 
@@ -484,7 +512,7 @@ var Tailmix = (() => {
         this.execute(instruction, evaluator);
       }
     }
-    execute(instruction, evaluator) {
+    async execute(instruction, evaluator) {
       const [op, ...args] = instruction;
       switch (op) {
         case "set": {
@@ -498,7 +526,45 @@ var Tailmix = (() => {
           console.log(`[Tailmix Log]`, ...values);
           break;
         }
-        // todo: toggle, fetch, dispatch etc
+        case "fetch": {
+          const [urlExpr, options, successBlock] = args;
+          let url = evaluator.evaluate(urlExpr);
+          if (options.query) {
+            const params = new URLSearchParams();
+            for (const [key, valExpr] of Object.entries(options.query)) {
+              const val = evaluator.evaluate(valExpr);
+              if (val) params.append(key, val);
+            }
+            if (url.includes("?")) url += "&" + params.toString();
+            else url += "?" + params.toString();
+          }
+          try {
+            const resp = await fetch(url, {
+              method: options.method || "GET",
+              headers: {
+                "X-Requested-With": "XMLHttpRequest",
+                // Rails любит это
+                "Accept": options.response_type === "json" ? "application/json" : "text/html"
+              }
+            });
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            let data;
+            if (options.response_type === "json") {
+              data = await resp.json();
+            } else {
+              data = await resp.text();
+            }
+            if (successBlock) {
+              const newScope = evaluator.scope.clone();
+              newScope.locals["response"] = data;
+              this.run(successBlock, newScope);
+            }
+          } catch (e) {
+            console.error("[Tailmix] Fetch failed", e);
+          }
+          break;
+        }
+        // todo: toggle, dispatch etc
         default:
           console.warn(`[Tailmix] Unknown action opcode: ${op}`);
       }

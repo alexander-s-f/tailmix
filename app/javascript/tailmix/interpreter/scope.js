@@ -1,13 +1,24 @@
+
 export class Scope {
     constructor(state = {}, param = {}, element = null) {
         this.state = state;
         this.param = param;
-        this.element = element; // The actual DOM node for this
+        this.element = element;
         this.locals = {};
     }
 
-    resolve(domain, pathString) {
+    // pathArg can be a string ("user.name") or an array (["user", "name"])
+    resolve(domain, pathArg) {
         let root;
+
+        let keys = [];
+        if (Array.isArray(pathArg)) {
+            keys = pathArg;
+        } else if (typeof pathArg === 'string') {
+            keys = pathArg.split('.');
+        } else if (pathArg === undefined || pathArg === null) {
+            keys = [];
+        }
 
         switch (domain) {
             case 'state':
@@ -16,33 +27,28 @@ export class Scope {
             case 'param':
                 root = this.param;
                 break;
-            case 'this':
-                // On the client, this is the element
-                if (!this.element) return null;
-                root = this.element;
-                break;
             case 'local':
                 root = this.locals;
                 break;
+            case 'this':
+                if (!this.element) return null;
+                root = this.element;
+                break;
             case 'event':
-                // pathString: "value", "target.value", "type"
                 if (!this.locals.event) return null;
 
-                // Simplification: if "value" is requested, return event.target.value for input events
-                if (pathString === 'value' && this.locals.event.target) {
+                const key = keys[0];
+                if (key === 'value' && this.locals.event.target) {
                     return this.locals.event.target.value;
                 }
-                // It is possible to add access to keys, preventDefault, etc.
-                return this.locals.event[pathString];
+                return this.locals.event[key];
             default:
                 return null;
         }
 
-        if (!pathString) return root;
+        if (keys.length === 0) return root;
 
-        const keys = pathString.split('.');
         let current = root;
-
         for (const key of keys) {
             if (current === null || current === undefined) {
                 return null;
@@ -51,5 +57,11 @@ export class Scope {
         }
 
         return current;
+    }
+
+    clone() {
+        const s = new Scope(this.state, this.param, this.element);
+        s.locals = { ...this.locals };
+        return s;
     }
 }

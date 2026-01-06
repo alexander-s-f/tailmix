@@ -65,5 +65,15 @@ export class DOMPatcher {
                 }
             }
         }
+
+        // HTML Content ("h")
+        // result.html can be an HTML string or text
+        if (result.html !== undefined && result.html !== null) {
+            const newHtml = String(result.html);
+            // A simple check to avoid redrawing the heavy DOM in vain
+            if (element.innerHTML !== newHtml) {
+                element.innerHTML = newHtml;
+            }
+        }
     }
 }
