@@ -11,7 +11,8 @@ module Tailmix
           data: {},
           aria: {},
           props: {},
-          other: {}
+          other: {},
+          html: nil,
         )
       end
 
@@ -29,6 +30,10 @@ module Tailmix
 
       def prop(hash)
         @effect.props.merge!(hash)
+      end
+
+      def html(expression)
+        @effect.html = expression
       end
     end
   end

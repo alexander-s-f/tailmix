@@ -5,6 +5,8 @@ require_relative "parser_context"
 module Tailmix
   module DSL
     class ActionParser < ParserContext
+      attr_reader :instructions
+
       def initialize
         @instructions = []
       end
@@ -18,49 +20,34 @@ module Tailmix
         @instructions << AST::Assignment.new(target: target, value: value)
       end
 
+      def response
+        AST::VariableReference.new(domain: :local, path: ["response"])
+      end
+
       def log(*args)
         @instructions << AST::Log.new(arguments: args)
+      end
+
+      # fetch "/api/cities", query: { id: 1 }, response: :text do ... end
+      def fetch(url, query: {}, response: :json, &block)
+        url_node = url.is_a?(AST::NodeMethods) ? url : AST::Literal.new(value: url)
+
+        success_instructions = nil
+
+        if block_given?
+          response_proxy = AST::VariableReference.new(domain: :local, path: ["response"])
+          parser = ActionParser.new
+
+          parser.instance_exec(response_proxy, &block)
+          success_instructions = AST::Block.new(instructions: parser.instructions)
+        end
+
+        @instructions << AST::Fetch.new(
+          url: url_node,
+          options: { method: :get, query: query, response_type: response },
+          success_block: success_instructions
+        )
       end
     end
   end
 end
-
-# module Tailmix
-#   module DSL
-#     class ActionParser < ParserContext
-#       attr_reader :instructions
-#
-#       def initialize(&block)
-#         @instructions = []
-#         instance_eval(&block) if block
-#       end
-#
-#       # DSL: set state.count, state.count + 1
-#       def set(target, value)
-#         # target must be an Expression wrapping a VariableReference
-#         raise ArgumentError, "Target must be a state reference" unless target.is_a?(Expression)
-#
-#         @instructions << AST::Assignment.new(
-#           target: target.node,
-#           value: unwrap(value)
-#         )
-#       end
-#
-#       # DSL: toggle state.active
-#       def toggle(target)
-#         # toggle(x) => set(x, !x)
-#         set(target, !target)
-#       end
-#
-#       def log(*args)
-#         @instructions << AST::Log.new(
-#           arguments: args.map { |a| unwrap(a) }
-#         )
-#       end
-#
-#       def result
-#         AST::Block.new(instructions: @instructions)
-#       end
-#     end
-#   end
-# end

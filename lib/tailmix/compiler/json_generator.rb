@@ -71,6 +71,22 @@ module Tailmix
         ]
       end
 
+      def visit_Fetch(node)
+        # [:fetch, url, options, success_instructions]
+
+        # Compiling query parameters (they can be expressions: state.region)
+        compiled_query = node.options[:query].transform_values { |v| visit(ensure_ast(v)) }
+
+        compiled_options = node.options.merge(query: compiled_query)
+
+        [
+          :fetch,
+          visit(node.url),
+          compiled_options,
+          visit(node.success_block)
+        ]
+      end
+
       def visit_AttributeEffect(node)
         return nil if node.nil?
 
@@ -95,6 +111,8 @@ module Tailmix
         unless node.props.empty?
           payload["p"] = node.props.transform_keys(&:to_s).transform_values { |v| visit(v) }
         end
+
+        payload["h"] = visit(node.html) if node.html
 
         payload
       end
@@ -127,8 +145,14 @@ module Tailmix
         [ node.operator, visit(node.left), visit(node.right) ]
       end
 
+      # def visit_VariableReference(node)
+      #   [ node.domain, node.path.join(".") ]
+      # end
+
       def visit_VariableReference(node)
-        [ node.domain, node.path.join(".") ]
+        # [:domain, path...]
+        # Example: [:local, "response"] or [:state, "counter"]
+        [node.domain, *node.path]
       end
 
       def visit_Literal(node)
@@ -138,6 +162,12 @@ module Tailmix
       # Primitives handling
       def visit_primitive(node)
         node
+      end
+
+      private
+
+      def ensure_ast(val)
+        val.is_a?(AST::NodeMethods) ? val : AST::Literal.new(value: val)
       end
     end
   end

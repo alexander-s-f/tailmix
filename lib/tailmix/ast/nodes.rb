@@ -12,6 +12,22 @@ module Tailmix
         self.class.name.split("::").last
       end
 
+      # Key access support: response['id'] or state.user['name']
+      def [](key)
+        # Returning a new VariableReference, deepening the path
+        # ATTENTION: This only works if self is a VariableReference.
+        # If self is an expression (BinaryOp), then this cannot be done (you need to add Operation :get).
+
+        if self.is_a?(VariableReference)
+          # Creating a new link with an extended path: path + [key]
+          VariableReference.new(domain: self.domain, path: self.path + [key.to_s])
+        else
+          # Fallback for access operation (for JS: obj[key])
+          # method: :get, arguments: [key]
+          MethodCall.new(object: self, method: :get, arguments: [key])
+        end
+      end
+
       # Sugar to create a MethodCall node directly from an AST node
       # Allows writing in DSL: state.query.length
       def length
@@ -124,7 +140,7 @@ module Tailmix
     end
 
     # --- 2. Rules ---
-    AttributeEffect = Struct.new(:classes, :data, :aria, :props, :other, keyword_init: true) do
+    AttributeEffect = Struct.new(:classes, :data, :aria, :props, :other, :html, keyword_init: true) do
       include NodeMethods
     end
 
@@ -150,6 +166,10 @@ module Tailmix
     end
 
     Log = Struct.new(:arguments, keyword_init: true) do
+      include NodeMethods
+    end
+
+    Fetch = Struct.new(:url, :options, :success_block, keyword_init: true) do
       include NodeMethods
     end
 
