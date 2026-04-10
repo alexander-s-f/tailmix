@@ -22,7 +22,6 @@ module Tailmix
 
         define_state_accessors(klass)
         define_element_methods(klass)
-        # todo: define_action_methods(klass)..
 
         klass
       end
@@ -36,8 +35,9 @@ module Tailmix
           klass.define_method(method_name) do |param = {}|
             Interpreter::Renderer.render(
               element_def,
-              state: @state,
-              param: param,
+              state:             @state,
+              param:             param,
+              variants:          @variants,
               component_context: self
             )
           end

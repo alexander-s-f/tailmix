@@ -6,17 +6,16 @@ require_relative "scope"
 module Tailmix
   module Interpreter
     class Renderer
-      # Adding the component_context argument for accessing metadata (name, full state data)
-      def self.render(element_def, state:, param: {}, component_context: nil)
-        new(element_def, state, param, component_context).render
+      def self.render(element_def, state:, param: {}, variants: {}, component_context: nil)
+        new(element_def, state, param, variants, component_context).render
       end
 
-      def initialize(element_def, state, param, component_context)
+      def initialize(element_def, state, param, variants, component_context)
         @definition = element_def
-        @scope = Scope.new(state: state, param: param)
+        @scope = Scope.new(state: state, param: param, variants: variants)
         @evaluator = Evaluator.new(@scope)
-        @extra_attributes = param # The call arguments (ui.btn(class: "foo")) are considered extra attributes
-        @component_context = component_context # Фасад (self)
+        @extra_attributes = param
+        @component_context = component_context
       end
 
       def render
@@ -25,7 +24,8 @@ module Tailmix
         accumulated = {
           classes: attributes.delete("class")&.split || [],
           data: {},
-          aria: {}
+          aria: {},
+          props: {}
         }
 
         @definition[:rules].each do |rule|
@@ -36,9 +36,9 @@ module Tailmix
 
         final = attributes
 
-        if @extra_attributes[:root] || @extra_attributes["root"]
+        if (@extra_attributes[:root] || @extra_attributes["root"]) && @component_context
           final["data-tailmix-component"] = @component_context.class.definition[:name]
-          final["data-tailmix-state"] = @component_context.state_json
+          final["data-tailmix-state"]     = @component_context.state_json
         end
 
         final.delete("root")
@@ -46,11 +46,10 @@ module Tailmix
 
         final["class"] = accumulated[:classes].uniq.join(" ") unless accumulated[:classes].empty?
 
-        # Data & Aria
-        accumulated[:data].each { |k, v| final["data-#{k}"] = v }
-        accumulated[:aria].each { |k, v| final["aria-#{k}"] = v }
+        accumulated[:data].each  { |k, v| final["data-#{k}"] = v }
+        accumulated[:aria].each  { |k, v| final["aria-#{k}"] = v }
+        accumulated[:props].each { |k, v| final[k] = v }
 
-        # Tech attrs
         final["data-tailmix-element"] = @definition[:name]
         clean_param = @scope.param.except("class", "style", "root")
         final["data-tailmix-param"] = clean_param.to_json unless clean_param.empty?
@@ -73,53 +72,45 @@ module Tailmix
           end
 
         when :match
-          # [:match, subject, cases, default]
-          val = @evaluator.evaluate(rule[1])
-          key = val.is_a?(Symbol) ? val.to_s : val.to_s
-
+          # [:match, subject_expr, cases, default]
+          val   = @evaluator.evaluate(rule[1])
+          key   = val.to_s
           cases = rule[2]
+
           if cases.key?(key)
             apply_effect(cases[key], acc)
-          elsif rule[3] # default
+          elsif rule[3]
             apply_effect(rule[3], acc)
           end
 
         when :on
-          # [:on, "click", [...]]
-          event_name = rule[1]
-          acc[:data]["tailmix-on-#{event_name}"] = "true"
+          # [:on, "click", [...]] — mark element for JS hydration
+          acc[:data]["tailmix-on-#{rule[1]}"] = "true"
 
-        when :set, :log
-          nil
+        when :set, :toggle, :log, :fetch
+          nil # action instructions — not relevant during SSR rendering
         end
       end
 
       def apply_effect(effect, acc)
         return unless effect
 
-        # effect is a Hash { "c" => "...", "d" => {...}, "a" => {...} }
+        # effect: { "c" => "...", "d" => {...}, "a" => {...}, "p" => {...} }
+
         if effect["c"]
           acc[:classes].concat(effect["c"].split)
         end
 
         if effect["d"]
-          effect["d"].each do |k, v_expr|
-            acc[:data][k] = @evaluator.evaluate(v_expr)
-          end
+          effect["d"].each { |k, v_expr| acc[:data][k] = @evaluator.evaluate(v_expr) }
         end
 
         if effect["a"]
-          effect["a"].each do |k, v_expr|
-            acc[:aria][k] = @evaluator.evaluate(v_expr)
-          end
+          effect["a"].each { |k, v_expr| acc[:aria][k] = @evaluator.evaluate(v_expr) }
         end
 
         if effect["p"]
-          effect["p"].each do |k, v_expr|
-            val = @evaluator.evaluate(v_expr)
-            # For server-side rendering, props are converted into ordinary attributes.
-            acc[:other][k] = val
-          end
+          effect["p"].each { |k, v_expr| acc[:props][k] = @evaluator.evaluate(v_expr) }
         end
       end
 
@@ -131,15 +122,10 @@ module Tailmix
           if k == "class"
             acc[:classes].concat(value.to_s.split)
           elsif k.start_with?("data-")
-            # data-foo -> acc[:data]["foo"]
-            data_key = k.sub(/^data-/, "")
-            acc[:data][data_key] = value
+            acc[:data][k.sub(/^data-/, "")] = value
           elsif k.start_with?("aria-")
-            # aria-label -> acc[:aria]["label"]
-            aria_key = k.sub(/^aria-/, "")
-            acc[:aria][aria_key] = value
+            acc[:aria][k.sub(/^aria-/, "")] = value
           else
-            # id, title, href, etc.
             final_attrs[k] = value
           end
         end

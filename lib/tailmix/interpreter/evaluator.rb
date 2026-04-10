@@ -8,26 +8,27 @@ module Tailmix
       end
 
       def evaluate(expr)
-        # If it's not an array, then it's a literal (number, string, true/false).
+        # Literals: numbers, strings, booleans, nil
         return expr unless expr.is_a?(Array)
 
-        op, arg1, arg2 = expr
+        op   = expr[0]
+        args = expr[1..]
+        arg1, arg2 = args
 
         case op
-          # --- Variables ---
-        when :state, :param
-          # [:state, "count"] -> arg1="count"
-          @scope.resolve(op, arg1)
-        when :this
-          nil # Server-side: this is always nil
+        # --- Variables ---
+        # [:state, "active"] or [:state, "user", "name"]
+        when :state, :param, :local, :variant
+          @scope.resolve(op, args.join("."))
 
-          # --- Logic ---
-        when :eq
-          normalize(evaluate(arg1)) == normalize(evaluate(arg2))
-        when :neq
-          normalize(evaluate(arg1)) != normalize(evaluate(arg2))
-        when :gt  then evaluate(arg1) > evaluate(arg2)
-        when :lt  then evaluate(arg1) < evaluate(arg2)
+        when :this, :event
+          nil # server-side: DOM element / live event not available
+
+        # --- Logic ---
+        when :eq  then normalize(evaluate(arg1)) == normalize(evaluate(arg2))
+        when :neq then normalize(evaluate(arg1)) != normalize(evaluate(arg2))
+        when :gt  then evaluate(arg1) >  evaluate(arg2)
+        when :lt  then evaluate(arg1) <  evaluate(arg2)
         when :gte then evaluate(arg1) >= evaluate(arg2)
         when :lte then evaluate(arg1) <= evaluate(arg2)
         when :and then evaluate(arg1) && evaluate(arg2)
@@ -35,18 +36,23 @@ module Tailmix
         when :not then !evaluate(arg1)
 
         # --- Arithmetic ---
-        when :add then evaluate(arg1) + evaluate(arg2)
-        when :sub then evaluate(arg1) - evaluate(arg2)
-        when :mul then evaluate(arg1) * evaluate(arg2)
-        when :div then evaluate(arg1) / evaluate(arg2)
+        when :add  then evaluate(arg1) + evaluate(arg2)
+        when :sub  then evaluate(arg1) - evaluate(arg2)
+        when :mul  then evaluate(arg1) * evaluate(arg2)
+        when :div  then evaluate(arg1) / evaluate(arg2)
 
-        # --- Functions ---
+        # --- Helpers ---
         when :concat then evaluate(arg1).to_s + evaluate(arg2).to_s
+        when :len
+          val = evaluate(arg1)
+          val ? val.to_s.length : 0
 
         else
           raise "Unknown opcode: #{op.inspect}"
         end
       end
+
+      private
 
       def normalize(val)
         val.is_a?(Symbol) ? val.to_s : val

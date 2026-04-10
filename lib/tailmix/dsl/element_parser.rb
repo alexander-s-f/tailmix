@@ -4,6 +4,7 @@ require_relative "../utils/hash_splitter"
 require_relative "parser_context"
 require_relative "action_parser"
 require_relative "effect_builder"
+require_relative "style_builder"
 require_relative "match_builder"
 
 module Tailmix
@@ -15,35 +16,45 @@ module Tailmix
         @rules = []
 
         # If base classes are passed in element :btn, "bg-red"
-        if base_classes.present?
-          # We add them as an unconditional style
+        unless base_classes.nil? || base_classes.empty?
           classes(base_classes)
         end
 
         instance_eval(&block) if block
       end
 
-      # --- Logic Rules ---
+      # --- Event Rules ---
 
       def on(event_name, &block)
-        # Instructions are parsed separately (InstructionParser will be needed, we will simplify for now)
-        # For the prototype, we use ActionParser
         instructions = ActionParser.new.parse(&block)
         @rules << AST::EventRule.new(event_name: event_name.to_s, instruction_sequence: instructions)
       end
 
+      # --- Style Rule ---
+      #
+      # style condition: state.open do
+      #   classes "visible opacity-100"
+      #   otherwise "invisible opacity-0"   # optional else branch
+      # end
       def style(condition:, &block)
-        builder = EffectBuilder.new
+        builder = StyleBuilder.new
         builder.instance_eval(&block)
 
         @rules << AST::StyleRule.new(
           condition: condition,
-          consequent: builder.effect,
-          alternate: nil
+          consequent: builder.consequent.effect,
+          alternate: builder.alternate
         )
       end
 
-      def dimension(subject, &block)
+      # --- Match Rule ---
+      #
+      # match state.active do
+      #   on "profile", "border-b-2 border-blue-500"
+      #   on "settings" do ... end
+      #   default "text-gray-500"
+      # end
+      def match(subject, &block)
         builder = MatchBuilder.new
         builder.instance_eval(&block)
 
@@ -55,8 +66,7 @@ module Tailmix
       end
 
       # --- Top-level Effect Shortcuts ---
-      # If we write prop/classes directly in the element body,
-      # this is equivalent to style condition: true
+      # Writing prop/classes directly in the element body is equivalent to style condition: true
 
       def prop(attributes = {})
         with_base_style { |builder| builder.prop(attributes) }
@@ -72,10 +82,7 @@ module Tailmix
 
       private
 
-      # Helper: adds properties to an unconditional rule (condition: true)
       def with_base_style
-        # Look for an existing "always true" rule or create a new one
-        # For simplicity, we create a new one each time; the optimizer can then merge it
         builder = EffectBuilder.new
         yield builder
 

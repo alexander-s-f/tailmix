@@ -119,7 +119,7 @@ module Tailmix
     end
 
     # --- 1. Definitions ---
-    Component = Struct.new(:name, :states, :elements, :boot_sequence, keyword_init: true) do
+    Component = Struct.new(:name, :states, :variants, :elements, :boot_sequence, :watchers, keyword_init: true) do
       include NodeMethods
     end
 
@@ -132,6 +132,16 @@ module Tailmix
         @default_value = default_value
         @persistence = persistence
         @type = type
+      end
+    end
+
+    class VariantDefinition
+      include NodeMethods
+      attr_reader :name, :default_value
+
+      def initialize(name, default_value)
+        @name = name
+        @default_value = default_value
       end
     end
 
@@ -165,11 +175,23 @@ module Tailmix
       include NodeMethods
     end
 
+    Toggle = Struct.new(:target, keyword_init: true) do
+      include NodeMethods
+    end
+
     Log = Struct.new(:arguments, keyword_init: true) do
       include NodeMethods
     end
 
     Fetch = Struct.new(:url, :options, :success_block, keyword_init: true) do
+      include NodeMethods
+    end
+
+    Dispatch = Struct.new(:event_name, :detail, keyword_init: true) do
+      include NodeMethods
+    end
+
+    WatchRule = Struct.new(:subject, :instruction_sequence, keyword_init: true) do
       include NodeMethods
     end
 

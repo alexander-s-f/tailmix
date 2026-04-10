@@ -2,6 +2,7 @@
 
 require_relative "parser_context"
 require_relative "element_parser"
+require_relative "action_parser"
 
 module Tailmix
   module DSL
@@ -12,8 +13,10 @@ module Tailmix
 
       def initialize(name)
         @name = name
-        @states = []
+        @states   = []
+        @variants = []
         @elements = []
+        @watchers = []
         @boot_sequence = []
       end
 
@@ -22,49 +25,70 @@ module Tailmix
         AST::Component.new(
           name: @name,
           states: @states,
+          variants: @variants,
           elements: @elements,
-          boot_sequence: AST::Block.new(instructions: @boot_sequence)
+          boot_sequence: AST::Block.new(instructions: @boot_sequence),
+          watchers: @watchers
         )
       end
 
-      # DSL: state :counter, default: 0
-      # DSL: state :active, default: true (type: :boolean)
-      # DSL: state :price, default: nil, type: :float
-      def state(name, default: nil, persist: nil, type: nil)
-        # 1. Нормализация Persistence (как было)
+      # state           -> VariableProxy  (for expressions: watch state.query do)
+      # state :counter, default: 0       (defines a state variable)
+      def state(name = nil, default: nil, persist: nil, type: nil)
+        return VariableProxy.new(:state) if name.nil?
         persistence_config = if persist.is_a?(Hash)
           { type: persist[:type].to_sym, key: (persist[:key] || name).to_s }
         elsif persist
           { type: persist.to_sym, key: name.to_s }
         end
 
-        # 2. (Type Inference)
-        inferred_type = type
-        if inferred_type.nil? && !default.nil?
-          inferred_type = case default
-          when Integer then :integer
-          when Float then :float
-          when TrueClass, FalseClass then :boolean
-          when Hash, Array then :json
-          else :string
-          end
+        inferred_type = type || case default
+        when Integer        then :integer
+        when Float          then :float
+        when TrueClass,
+             FalseClass     then :boolean
+        when Hash, Array    then :json
+        when nil            then nil
+        else                     :string
         end
-
-        # If the type is not specified and the default is nil, we consider it a string.
         inferred_type ||= :string
 
         @states << AST::StateDefinition.new(name, default, persistence: persistence_config, type: inferred_type)
       end
 
-      def element(name, base_classes = "", &block)
-        # Delegate element parsing to a dedicated class
-        parser = ElementParser.new(base_classes, &block)
+      # variant          -> VariableProxy  (for expressions: match variant.size do)
+      # variant :size, default: :md       (defines a variant)
+      def variant(name = nil, default: nil)
+        return VariableProxy.new(:variant) if name.nil?
 
+        @variants << AST::VariantDefinition.new(name, default)
+      end
+
+      # element :btn, "base-classes" do ... end
+      def element(name, base_classes = "", &block)
+        parser = ElementParser.new(base_classes, &block)
         @elements << AST::ElementDefinition.new(
           name: name,
-          attributes: {}, # Static attributes can be extracted, but for now everything is through rules
+          attributes: {},
           rules: parser.rules
         )
+      end
+
+      # boot do
+      #   fetch "/api/data" do |response|
+      #     set state.items, response
+      #   end
+      # end
+      def boot(&block)
+        @boot_sequence = ActionParser.new.parse(&block).instructions
+      end
+
+      # watch state.query do
+      #   fetch "/api/search", query: { q: state.query }
+      # end
+      def watch(subject, &block)
+        instructions = ActionParser.new.parse(&block)
+        @watchers << AST::WatchRule.new(subject: subject, instruction_sequence: instructions)
       end
     end
   end

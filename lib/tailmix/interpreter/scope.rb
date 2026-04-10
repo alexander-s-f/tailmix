@@ -4,42 +4,38 @@ module Tailmix
   module Interpreter
     class Scope
       attr_reader :state, :param
+      attr_accessor :locals
 
-      def initialize(state: {}, param: {})
-        @state = state.transform_keys(&:to_s)
-        @param = param.transform_keys(&:to_s)
-        @locals = {}
+      def initialize(state: {}, param: {}, variants: {})
+        @state    = state.transform_keys(&:to_s)
+        @param    = param.transform_keys(&:to_s)
+        @variants = variants.transform_keys(&:to_s)
+        @locals   = {}
       end
 
-      # scope.resolve(:state, "user.name")
+      # resolve(:state, "user.name") -> deep-dig into @state["user"]["name"]
+      # resolve(:variant, "size")    -> @variants["size"]
       def resolve(domain, path_string)
         root = case domain
-        when :state then @state
-        when :param then @param
-        when :local then @locals
+        when :state   then @state
+        when :param   then @param
+        when :variant then @variants
+        when :local   then @locals
         else return nil
         end
 
-        keys = path_string.split(".")
+        return root if path_string.nil? || path_string.empty?
 
-        keys.reduce(root) do |current, key|
+        path_string.split(".").reduce(root) do |current, key|
           return nil if current.nil?
 
           if current.is_a?(Hash)
-            if current.key?(key)
-              current[key]
-            else
-              current[key.to_sym]
-            end
+            current.key?(key) ? current[key] : current[key.to_sym]
           elsif current.respond_to?(key)
             current.public_send(key)
-          else
-            nil
           end
         end
       end
     end
   end
 end
-
-

@@ -9,7 +9,6 @@ module Tailmix
       # Helper functions for creating AST nodes for variables
 
       def state
-        # Returns a proxy object that, when state.name is accessed, will return VariableReference
         VariableProxy.new(:state)
       end
 
@@ -17,9 +16,12 @@ module Tailmix
         VariableProxy.new(:param)
       end
 
+      def variant
+        VariableProxy.new(:variant)
+      end
+
       def event
-        # AST node for accessing event (event.value)
-        AST::VariableReference.new(domain: :event, path: [])
+        VariableProxy.new(:event)
       end
 
       # Helper class for state.active syntax

@@ -17,15 +17,14 @@ export class Component {
         this.eventControllers = new WeakMap();
         this.bindEvents();
         this.render();
+        this.runBoot();
 
         console.log(`[Tailmix] Component "${this.definition.name}" hydrated.`);
     }
 
     initializeState() {
         const domState = this.loadInitialStateFromDOM();
-
         const persistedState = this.persistence.loadOverrides();
-
         // Server Defaults -> DOM State -> Persisted State
         return { ...domState, ...persistedState };
     }
@@ -41,6 +40,8 @@ export class Component {
     }
 
     update(newStatePatch = {}, options = {}) {
+        const previousState = { ...this.state };
+
         this.state = deepMerge(this.state, newStatePatch);
 
         if (!options.skipPersistence) {
@@ -49,6 +50,35 @@ export class Component {
 
         this.element.dataset.tailmixState = JSON.stringify(this.state);
         this.render();
+        this.runWatchers(previousState);
+    }
+
+    runWatchers(previousState) {
+        const watchers = this.definition.watchers;
+        if (!watchers || watchers.length === 0) return;
+
+        const scope     = new Scope(this.state,    {}, this.element);
+        const prevScope = new Scope(previousState, {}, this.element);
+
+        for (const watcher of watchers) {
+            // [:watch, subjectExpr, instructions]
+            const [_, subjectExpr, instructions] = watcher;
+
+            const newVal = this.interpreter.evaluatorFor(scope).evaluate(subjectExpr);
+            const oldVal = this.interpreter.evaluatorFor(prevScope).evaluate(subjectExpr);
+
+            if (JSON.stringify(newVal) !== JSON.stringify(oldVal)) {
+                this.interpreter.run(instructions, scope);
+            }
+        }
+    }
+
+    runBoot() {
+        const bootInstructions = this.definition.boot;
+        if (!bootInstructions || bootInstructions.length === 0) return;
+
+        const scope = new Scope(this.state, {}, this.element);
+        this.interpreter.run(bootInstructions, scope);
     }
 
     bindEvents() {
@@ -62,7 +92,6 @@ export class Component {
 
             if (!elementDef || !elementDef.rules) return;
 
-            // 'on'
             const eventRules = elementDef.rules.filter(r => r[0] === 'on');
             if (eventRules.length === 0) return;
 

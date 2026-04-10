@@ -5,10 +5,11 @@ require "json"
 module Tailmix
   module Runtime
     class Facade
-      attr_reader :state
+      attr_reader :state, :variants
 
-      def initialize(state)
-        @state = state
+      def initialize(state, variants = {})
+        @state    = state
+        @variants = variants
       end
 
       def state_json

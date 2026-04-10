@@ -1,4 +1,5 @@
 import { Evaluator } from './evaluator';
+import { Scope } from './scope';
 import { buildNestedPatch } from '../runtime/utils';
 
 export class ActionInterpreter {
@@ -26,6 +27,26 @@ export class ActionInterpreter {
                 const [targetExpr, valueExpr] = args;
                 const value = evaluator.evaluate(valueExpr);
                 this.assign(targetExpr, value);
+                break;
+            }
+            case 'toggle': {
+                // [:toggle, [:state, "open"]]
+                const [targetExpr] = args;
+                const current = evaluator.evaluate(targetExpr);
+                this.assign(targetExpr, !current);
+                break;
+            }
+            case 'dispatch': {
+                // [:dispatch, "event-name", { key: expr, ... }]
+                const [eventName, detailExprs] = args;
+                const detail = {};
+                if (detailExprs) {
+                    for (const [key, valExpr] of Object.entries(detailExprs)) {
+                        detail[key] = evaluator.evaluate(valExpr);
+                    }
+                }
+                const ev = new CustomEvent(eventName, { bubbles: true, cancelable: true, detail });
+                this.component.element.dispatchEvent(ev);
                 break;
             }
             case 'log': {
@@ -86,6 +107,11 @@ export class ActionInterpreter {
             default:
                 console.warn(`[Tailmix] Unknown action opcode: ${op}`);
         }
+    }
+
+    // Create an Evaluator bound to a given Scope (used by watchers in component.js)
+    evaluatorFor(scope) {
+        return new Evaluator(scope);
     }
 
     assign(targetExpr, value) {

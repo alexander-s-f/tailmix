@@ -40,7 +40,7 @@ const Tailmix = {
         this.observer = new MutationObserver((mutations) => {
             let shouldBoot = false;
             for (const m of mutations) {
-                if ([...m.addedNodes].some(n => n.nodeType === 1 && n.matches?.('[data-tailmix]'))) {
+                if ([...m.addedNodes].some(n => n.nodeType === 1 && n.matches?.('[data-tailmix-component]'))) {
                     shouldBoot = true; break;
                 }
             }
