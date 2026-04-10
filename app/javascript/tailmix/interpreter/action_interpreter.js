@@ -1,5 +1,4 @@
 import { Evaluator } from './evaluator';
-import { Scope } from './scope';
 import { buildNestedPatch } from '../runtime/utils';
 
 export class ActionInterpreter {
@@ -64,46 +63,35 @@ export class ActionInterpreter {
                     const params = new URLSearchParams();
                     for (const [key, valExpr] of Object.entries(options.query)) {
                         const val = evaluator.evaluate(valExpr);
-                        if (val) params.append(key, val);
+                        if (val !== null && val !== undefined) params.append(key, val);
                     }
-                    if (url.includes('?')) url += '&' + params.toString();
-                    else url += '?' + params.toString();
+                    const qs = params.toString();
+                    if (qs) url += (url.includes('?') ? '&' : '?') + qs;
                 }
 
                 try {
                     const resp = await fetch(url, {
                         method: options.method || 'GET',
                         headers: {
-                            'X-Requested-With': 'XMLHttpRequest', // Rails любит это
+                            'X-Requested-With': 'XMLHttpRequest',
                             'Accept': options.response_type === 'json' ? 'application/json' : 'text/html'
                         }
                     });
 
                     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 
-                    let data;
-                    if (options.response_type === 'json') {
-                        data = await resp.json();
-                    } else {
-                        data = await resp.text();
-                    }
+                    const data = options.response_type === 'json' ? await resp.json() : await resp.text();
 
                     if (successBlock) {
-                        // Creating a new Scope, to which we add the variable response
-                        // We need to create a child scope or simply redefine locals
                         const newScope = evaluator.scope.clone();
                         newScope.locals['response'] = data;
-
-                        // Recursively launch the interpreter for the success block
                         this.run(successBlock, newScope);
                     }
                 } catch (e) {
                     console.error("[Tailmix] Fetch failed", e);
-                    // TODO: handle error block
                 }
                 break;
             }
-            // todo: toggle, dispatch etc
             default:
                 console.warn(`[Tailmix] Unknown action opcode: ${op}`);
         }

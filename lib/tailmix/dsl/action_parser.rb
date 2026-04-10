@@ -57,11 +57,7 @@ module Tailmix
         )
       end
 
-      private
 
-      def ensure_ast(val)
-        val.is_a?(AST::NodeMethods) ? val : AST::Literal.new(value: val)
-      end
     end
   end
 end

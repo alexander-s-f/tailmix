@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "../utils/hash_splitter"
 require_relative "parser_context"
 require_relative "action_parser"
 require_relative "effect_builder"

@@ -7,10 +7,16 @@ import { deepMerge } from './utils';
 
 export class Component {
     constructor(element, definition) {
-        this.element = element;
+        this.element    = element;
         this.definition = definition;
+        // Pre-index elements by name for O(1) lookup in render/bindEvents
+        this.elementIndex = Object.fromEntries(
+            (definition.elements || []).map(e => [e.name, e])
+        );
+        // Resolve variants from definition defaults
+        this.variants    = this.initializeVariants();
         this.persistence = new PersistenceManager(this);
-        this.state = this.initializeState();
+        this.state       = this.initializeState();
         this.interpreter = new ActionInterpreter(this);
         this.persistence.bindListeners();
         this.update = this.update.bind(this);
@@ -19,7 +25,17 @@ export class Component {
         this.render();
         this.runBoot();
 
-        console.log(`[Tailmix] Component "${this.definition.name}" hydrated.`);
+        if (window.TAILMIX_DEBUG) {
+            console.log(`[Tailmix] Component "${this.definition.name}" hydrated.`);
+        }
+    }
+
+    initializeVariants() {
+        const variants = {};
+        for (const [name, config] of Object.entries(this.definition.variants || {})) {
+            variants[name] = config.default;
+        }
+        return variants;
     }
 
     initializeState() {
@@ -57,15 +73,18 @@ export class Component {
         const watchers = this.definition.watchers;
         if (!watchers || watchers.length === 0) return;
 
-        const scope     = new Scope(this.state,    {}, this.element);
-        const prevScope = new Scope(previousState, {}, this.element);
+        const scope     = new Scope(this.state,    {}, this.element, this.variants);
+        const prevScope = new Scope(previousState, {}, this.element, this.variants);
+        // Create evaluators once for all watchers
+        const evaluator     = this.interpreter.evaluatorFor(scope);
+        const prevEvaluator = this.interpreter.evaluatorFor(prevScope);
 
         for (const watcher of watchers) {
             // [:watch, subjectExpr, instructions]
             const [_, subjectExpr, instructions] = watcher;
 
-            const newVal = this.interpreter.evaluatorFor(scope).evaluate(subjectExpr);
-            const oldVal = this.interpreter.evaluatorFor(prevScope).evaluate(subjectExpr);
+            const newVal = evaluator.evaluate(subjectExpr);
+            const oldVal = prevEvaluator.evaluate(subjectExpr);
 
             if (JSON.stringify(newVal) !== JSON.stringify(oldVal)) {
                 this.interpreter.run(instructions, scope);
@@ -77,7 +96,7 @@ export class Component {
         const bootInstructions = this.definition.boot;
         if (!bootInstructions || bootInstructions.length === 0) return;
 
-        const scope = new Scope(this.state, {}, this.element);
+        const scope = new Scope(this.state, {}, this.element, this.variants);
         this.interpreter.run(bootInstructions, scope);
     }
 
@@ -87,8 +106,7 @@ export class Component {
         elementNodes.forEach(node => {
             if (this.eventControllers.has(node)) return;
 
-            const elementName = node.dataset.tailmixElement;
-            const elementDef = this.definition.elements.find(e => e.name === elementName);
+            const elementDef = this.elementIndex[node.dataset.tailmixElement];
 
             if (!elementDef || !elementDef.rules) return;
 
@@ -108,7 +126,7 @@ export class Component {
                         param = JSON.parse(node.dataset.tailmixParam || '{}');
                     } catch (e) {}
 
-                    const scope = new Scope(this.state, param, node);
+                    const scope = new Scope(this.state, param, node, this.variants);
                     scope.locals = { event };
 
                     this.interpreter.run(instructions, scope);
@@ -121,8 +139,7 @@ export class Component {
     render() {
         const elementNodes = this.element.querySelectorAll('[data-tailmix-element]');
         elementNodes.forEach(node => {
-            const elementName = node.dataset.tailmixElement;
-            const elementDef = this.definition.elements.find(e => e.name === elementName);
+            const elementDef = this.elementIndex[node.dataset.tailmixElement];
             if (!elementDef) return;
 
             let param = {};

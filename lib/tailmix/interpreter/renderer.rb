@@ -42,7 +42,6 @@ module Tailmix
         end
 
         final.delete("root")
-        final.delete(:root)
 
         final["class"] = accumulated[:classes].uniq.join(" ") unless accumulated[:classes].empty?
 

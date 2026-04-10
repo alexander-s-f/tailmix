@@ -24,6 +24,16 @@ module Tailmix
         VariableProxy.new(:event)
       end
 
+      private
+
+      # Coerce a plain Ruby value into an AST node.
+      # AST nodes pass through unchanged; everything else becomes a Literal.
+      def ensure_ast(val)
+        val.is_a?(AST::NodeMethods) ? val : AST::Literal.new(value: val)
+      end
+
+      public
+
       # Helper class for state.active syntax
       class VariableProxy
         def initialize(domain)
