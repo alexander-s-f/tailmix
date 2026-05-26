@@ -1,0 +1,15 @@
+
+div class: "p-6 mb-4 border border-gray-600 border-dashed" do
+  h3 "Tabs", class: "text-2xl font-medium text-yellow-500 mb-4"
+  tabs active: "profile" do
+    tab :profile do
+      h2 "Profile content"
+    end
+    tab :messages do
+      h2 "Messages content"
+    end
+    tab :settings do
+      h2 "Settings content"
+    end
+  end
+end

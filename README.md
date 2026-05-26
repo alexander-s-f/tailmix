@@ -1,146 +1,322 @@
 # Tailmix
 
-**Tailmix** is a powerful, declarative engine for managing HTML attributes in Ruby UI components. It allows you to co-locate all presentational logic—including CSS classes, data attributes, and ARIA roles—directly within your component's code, creating truly self-contained and maintainable components.
+**Tailmix** is a declarative, state-driven engine for managing HTML attributes (CSS classes, data, ARIA) in Ruby UI components. Write your component logic once in Ruby — it runs on the server for SSR and hydrates in the browser for interactive behaviour.
 
-[](https://badge.fury.io/rb/tailmix)
-[](https://github.com/alexander-s-f/tailmix/actions/workflows/main.yml)
+[![Gem Version](https://badge.fury.io/rb/tailmix.svg)](https://badge.fury.io/rb/tailmix)
+[![CI](https://github.com/alexander-s-f/tailmix/actions/workflows/main.yml/badge.svg)](https://github.com/alexander-s-f/tailmix/actions/workflows/main.yml)
 
-Inspired by modern frontend tools like CVA (Class Variance Authority), Tailmix brings a robust styling engine to your server-side components (built with Arbre, ViewComponent, Phlex, etc.).
+---
 
-## Key Features
+## Why Tailmix?
 
-* **Declarative DSL:** Describe your component's styles with an elegant and intuitive API.
-* **Variants & Compound Variants:** Easily manage different component states (`size`, `color`, etc.) and their combinations.
-* **Component Inheritance:** Create base components and extend them to avoid code duplication.
-* **Zero Dependencies:** Pure Ruby, ready to work in any project.
+Building interactive Ruby UI components (Arbre, ViewComponent, Phlex) usually means one of two things: a tangle of conditionals in the template, or a separate Stimulus controller per component. Tailmix offers a third path — a single declarative definition that handles both.
 
+```ruby
+tailmix do
+  state :open, default: false
+
+  element :panel do
+    style condition: state.open do
+      classes "block"
+      aria expanded: true
+      otherwise do
+        classes "hidden"
+        aria expanded: false
+      end
+    end
+  end
+
+  element :toggle_btn do
+    on :click do
+      toggle state.open
+    end
+  end
+end
+```
+
+That's it. No Stimulus controller. No JS file. The same definition drives server-rendered HTML and browser interactivity.
+
+---
+
+## Features
+
+- **Declarative DSL** — co-locate all presentational logic with your component class
+- **State & Variants** — mutable runtime state (JS-driven) + static compile-time variants (SSR-only)
+- **`style/otherwise`** — conditional attribute blocks with an explicit else branch
+- **`match/on`** — pattern-match a state value to a set of attribute effects
+- **`on :event`** — event handlers compiled to an instruction set (no hand-written JS)
+- **`toggle` / `set` / `dispatch`** — built-in instructions; `dispatch` fires CustomEvents for cross-component communication
+- **`boot {}`** — runs instructions once on JS component init (e.g. fetch initial data)
+- **`watch state.x {}`** — reactive side-effects triggered when state changes
+- **Persistence** — opt-in LocalStorage / SessionStorage per state key
+- **Isomorphic** — Ruby SSR interpreter mirrors the JS runtime; test everything in RSpec
+- **Zero runtime Ruby dependencies**
+
+---
 
 ## Installation
-
-Add the gem to your Gemfile:
 
 ```bash
 bundle add tailmix
 ```
 
-Then, run the installer to set up the JavaScript assets (required for `action` and `Stimulus` integration):
+For JavaScript hydration, install the asset:
 
 ```bash
 bin/rails g tailmix:install
 ```
 
------
+---
 
-## Usage
+## Quick start
 
-The core idea of Tailmix is to describe all variants of your component within a Ruby class.
-
-### 1. Basic Example: The `Modal` Component
-
-**Component Definition:**
+### 1. Define the component
 
 ```ruby
-# app/components/modal_component.rb
-class ModalComponent
+# app/components/disclosure_component.rb
+class DisclosureComponent
   include Tailmix
   attr_reader :ui
 
   tailmix do
-    plugin :auto_focus, on: :open_button, delay: 100
-    state :open, default: false, toggle: true
+    state :open, default: false
 
-    element :container do
-    end
-
-    element :open_button do
-      # We attach the `click` event to our auto-generated action.
-      on :click, :toggle_open
-    end
-
-    element :base do
-      dimension :open do
-        variant true, "fixed inset-0 z-50 flex items-center justify-center visible opacity-100 transition-opacity"
-        variant false, "invisible opacity-0"
+    element :root do
+      on :keydown do
+        # Escape key closes
       end
     end
 
-    element :overlay do
-      dimension :open do
-        variant true, "fixed inset-0 bg-black/50"
-        variant false, "hidden"
+    element :trigger, "flex w-full items-center justify-between py-4 font-medium" do
+      on :click do
+        toggle state.open
       end
-      on :click, :toggle_open
+      aria expanded: state.open
     end
 
-    element :panel, "relative bg-white rounded-lg shadow-xl" do
-      dimension :open do
-        variant true, "block"
-        variant false, "hidden"
+    element :panel do
+      style condition: state.open do
+        classes "block pb-4"
+        otherwise do
+          classes "hidden"
+        end
       end
     end
 
-    element :close_button, "absolute top-2 right-2 p-1 text-gray-500 rounded-full cursor-pointer" do
-      on :click, :toggle_open
+    element :icon, "transition-transform duration-200" do
+      style condition: state.open do
+        classes "rotate-180"
+      end
     end
-
-    element :title, "text-lg font-semibold text-gray-900 p-4 border-b"
-    element :body, "p-4 text-gray-900"
   end
 
-  def initialize(open: false, id: nil)
-    @ui = tailmix(open: open, id: id)
+  def initialize(open: false)
+    @ui = tailmix(open: open)
   end
 end
 ```
 
-**Usage in ERB:**
-In ERB, use the `**` operator to pass the attributes.
+### 2. Use in Arbre
+
+```ruby
+disclosure = DisclosureComponent.new
+ui = disclosure.ui
+
+div ui.root do
+  button ui.trigger do
+    span "Is Tailmix production-ready?"
+    span ui.icon do
+      # chevron SVG
+    end
+  end
+  div ui.panel do
+    para "Yes! The Ruby SSR path is stable and the JS runtime is actively developed."
+  end
+end
+```
+
+### 3. Use in ERB / ViewComponent
 
 ```erb
-<% ui = ModalComponent.new(open: false, id: :user_profile_modal).ui %>
+<% ui = DisclosureComponent.new.ui %>
 
-<div <%= tag.attributes **ui.container.component %>>
-  ...
+<div <%= tag.attributes(**ui.root) %>>
+  <button <%= tag.attributes(**ui.trigger) %>>
+    Is Tailmix production-ready?
+  </button>
+  <div <%= tag.attributes(**ui.panel) %>>
+    Yes! Absolutely.
+  </div>
 </div>
 ```
 
-**Usage in Arbre:**
-Arbre was the primary inspiration for Tailmix. Integration is seamless and does not require the `**` operator.
+---
+
+## DSL Reference
+
+### State
+
+Mutable values managed by the JS runtime. Types are inferred from the default value.
 
 ```ruby
-# _example_modal_component.arb
-modal_component = ModalComponent.new(open: false, id: :user_profile_modal)
-ui = modal_component.ui
+state :open,    default: false              # boolean
+state :count,   default: 0                  # integer
+state :query,   default: ""                 # string
+state :data,    default: nil, type: :json   # JSON blob
 
-button "Open Modal Outer", tailmix_trigger_for(:user_profile_modal, :toggle_open)
+# Persist across page loads
+state :theme,   default: "light", persist: :local    # localStorage
+state :sidebar, default: true,   persist: :session   # sessionStorage
+```
 
-div ui.container.component do
-  button "Open Modal", ui.open_button
+### Variants
 
-  div ui.base do
-    div ui.overlay
+Static compile-time props. Resolved at SSR, invisible to JavaScript.
 
-    div ui.panel do
-      div ui.title do
-        h3 "Modal Title"
-        button ui.close_button do
-          text_node "✖"
-        end
-      end
+```ruby
+variant :size,  default: :md   # :sm | :md | :lg
+variant :color, default: :blue
+```
 
-      div ui.body do
-        para "This is the main content of the modal. It's powered by the new Tailmix Runtime!"
-      end
-    end
+Pass variants when building the facade:
+
+```ruby
+@ui = tailmix(size: :lg, color: :green)
+```
+
+### Elements
+
+```ruby
+element :name, "static-classes" do
+  # rules ...
+end
+```
+
+Pass per-element params at render time:
+
+```ruby
+# Definition
+element :tab do
+  on :click do
+    set state.active, param.id
+  end
+end
+
+# Usage
+ui.tab(id: "profile")
+```
+
+### style
+
+```ruby
+style condition: state.open do
+  classes "block"
+  aria expanded: true
+  data foo: "bar"
+  otherwise do
+    classes "hidden"
+    aria expanded: false
   end
 end
 ```
 
+### match
+
+Pattern-match a state value to attribute sets:
+
+```ruby
+match state.size do
+  on "sm", "text-sm px-2 py-1"
+  on "lg", "text-lg px-6 py-3"
+  default    "text-base px-4 py-2"
+end
+```
+
+### on (event handlers)
+
+```ruby
+on :click do
+  set   state.active, param.id     # assign value
+  toggle state.open                # flip boolean
+  dispatch "tab:changed", detail: { id: param.id }   # CustomEvent
+  log "clicked"                    # console.log in browser
+end
+```
+
+### fetch
+
+```ruby
+on :click do
+  fetch "/api/items" do |response|
+    set state.items, response
+  end
+end
+
+# With query params and method
+fetch "/api/search", method: :post, query: { q: state.query } do |response|
+  set state.results, response
+end
+```
+
+### boot
+
+Runs once after JS component initialisation:
+
+```ruby
+boot do
+  fetch "/api/initial-data" do |response|
+    set state.data, response
+  end
+end
+```
+
+### watch
+
+Reactive side-effects. Fires when the watched expression changes:
+
+```ruby
+watch state.query do
+  fetch "/api/search", query: { q: state.query } do |response|
+    set state.results, response
+  end
+end
+```
+
+---
+
+## Examples
+
+See the [`examples/`](examples/) directory for complete, working components:
+
+| Example | Concepts |
+|---------|----------|
+| [`tabs.rb`](examples/tabs.rb) | `state`, `set`, `style`, `param` |
+| [`modal.rb`](examples/modal.rb) | `toggle`, `dispatch`, `style/otherwise` |
+| [`accordion.rb`](examples/accordion.rb) | `match`, `toggle`, multiple elements |
+| [`live_search.rb`](examples/live_search.rb) | `watch`, `fetch`, debounce pattern |
+
+---
+
+## How it works
+
+```
+Ruby DSL
+  └─ ComponentParser / ElementParser / ActionParser
+       └─ AST (nodes.rb)
+            └─ JSONGenerator (compiler)
+                 └─ Definition Hash (JSON-serializable)
+                      ├─ FacadeBuilder → Facade class (Ruby SSR)
+                      └─ JS runtime (component.js) ← hydrates from JSON definition
+```
+
+The compiled definition is a plain Ruby Hash (also valid JSON). Both the Ruby interpreter and the JS runtime consume the same format, so server-rendered and client-rendered components behave identically.
+
+---
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub.
+Bug reports and pull requests are welcome on [GitHub](https://github.com/alexander-s-f/tailmix).
 
 ## License
 
-The gem is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
+MIT — see [LICENSE](LICENSE).

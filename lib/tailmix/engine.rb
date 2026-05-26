@@ -1,26 +1,27 @@
 # frozen_string_literal: true
 
-require_relative "./arbre/context_helpers"
+require_relative "view_helpers"
 
 module Tailmix
   class Engine < ::Rails::Engine
+    isolate_namespace Tailmix
+
     config.before_initialize do
       Rails.application.config.assets.paths << Engine.root.join("app/javascript")
     end
 
-    PRECOMPILE_ASSETS = %w[ runtime/index.js ]
+    initializer "tailmix.assets" do |app|
+      app.config.assets.paths << root.join("app/javascript").to_s
+      app.config.assets.paths << root.join("app/assets").to_s
 
-    initializer "tailmix.assets" do
-      if Rails.application.config.respond_to?(:assets)
-        Rails.application.config.assets.precompile += PRECOMPILE_ASSETS
+      if app.config.respond_to?(:assets) && app.config.assets.respond_to?(:precompile)
+        app.config.assets.precompile += %w[
+          tailmix/tailmix.bundle.js
+        ]
       end
     end
 
-    initializer "tailmix.add_middleware" do |app|
-      app.middleware.use Tailmix::Middleware::RegistryCleaner
-    end
-
-    initializer "tailmix.helpers" do
+    initializer "tailmix.view_helpers" do
       ActiveSupport.on_load(:action_controller_base) do
         helper Tailmix::ViewHelpers
       end

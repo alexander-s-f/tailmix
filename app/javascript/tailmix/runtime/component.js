@@ -1,128 +1,156 @@
-import { Executor } from './executor';
-import { DOMUpdater } from './dom_updater';
-import { ActionInterpreter } from './action_interpreter';
-import { TriggerManager } from './trigger_manager';
-import { RuntimeContext } from './runtime_context';
-import { debounce, deepMerge, prettyJSON } from './utils';
+import { PersistenceManager } from './persistence';
+import { Renderer } from '../interpreter/renderer';
+import { DOMPatcher } from '../interpreter/dom_patcher';
+import { ActionInterpreter } from '../interpreter/action_interpreter';
+import { Scope } from '../interpreter/scope';
+import { deepMerge } from './utils';
 
 export class Component {
-    constructor(element, definition, dictionary) {
-        this.element = element;
-        this.dictionary = dictionary;
-        this.definition = this.decompress(definition);
-        this._state = this.loadInitialState();
+    constructor(element, definition) {
+        this.element    = element;
+        this.definition = definition;
+        // Pre-index elements by name for O(1) lookup in render/bindEvents
+        this.elementIndex = Object.fromEntries(
+            (definition.elements || []).map(e => [e.name, e])
+        );
+        // Resolve variants from definition defaults
+        this.variants    = this.initializeVariants();
+        this.persistence = new PersistenceManager(this);
+        this.state       = this.initializeState();
+        this.interpreter = new ActionInterpreter(this);
+        this.persistence.bindListeners();
+        this.update = this.update.bind(this);
+        this.eventControllers = new WeakMap();
+        this.bindEvents();
+        this.render();
+        this.runBoot();
 
-        this.runtimeContext = new RuntimeContext(this);
+        if (window.TAILMIX_DEBUG) {
+            console.log(`[Tailmix] Component "${this.definition.name}" hydrated.`);
+        }
+    }
 
-        this.executor = new Executor();
-        this.actionInterpreter = new ActionInterpreter(this);
-        this.triggerManager = new TriggerManager(this);
+    initializeVariants() {
+        const variants = {};
+        for (const [name, config] of Object.entries(this.definition.variants || {})) {
+            variants[name] = config.default;
+        }
+        return variants;
+    }
 
-        this.performUpdate = this.performUpdate.bind(this);
-        this.debouncedUpdate = debounce(this.performUpdate, 16);
+    initializeState() {
+        const domState = this.loadInitialStateFromDOM();
+        const persistedState = this.persistence.loadOverrides();
+        // Server Defaults -> DOM State -> Persisted State
+        return { ...domState, ...persistedState };
+    }
 
-        this.triggerManager.bind();
-        this.performUpdate();
+    loadInitialStateFromDOM() {
+        const json = this.element.dataset.tailmixState;
+        try {
+            return json ? JSON.parse(json) : {};
+        } catch (e) {
+            console.error(`[Tailmix] Failed to parse state`, e);
+            return {};
+        }
+    }
 
-        if (this.definition.connect_instructions?.length > 0) {
-            this.actionInterpreter.run(this.definition.connect_instructions, {}, this.runtimeContext, {});
+    update(newStatePatch = {}, options = {}) {
+        const previousState = { ...this.state };
+
+        this.state = deepMerge(this.state, newStatePatch);
+
+        if (!options.skipPersistence) {
+            this.persistence.save(newStatePatch);
         }
 
-        console.log(`Tailmix component "${this.definition.name || 'Unnamed'}" initialized.`);
+        this.element.dataset.tailmixState = JSON.stringify(this.state);
+        this.render();
+        this.runWatchers(previousState);
     }
 
-    disconnect() {
-        if (this.definition.disconnect_instructions?.length > 0) {
-            this.actionInterpreter.run(this.definition.disconnect_instructions, {}, this.runtimeContext, {});
-        }
-        console.log(`Tailmix component "${this.definition.name || 'Unnamed'}" disconnected.`);
-    }
+    runWatchers(previousState) {
+        const watchers = this.definition.watchers;
+        if (!watchers || watchers.length === 0) return;
 
-    get state() {
-        return this._state;
-    }
+        const scope     = new Scope(this.state,    {}, this.element, this.variants);
+        const prevScope = new Scope(previousState, {}, this.element, this.variants);
+        // Create evaluators once for all watchers
+        const evaluator     = this.interpreter.evaluatorFor(scope);
+        const prevEvaluator = this.interpreter.evaluatorFor(prevScope);
 
-    update(newState) {
-        this._state = deepMerge(this._state, newState);
-        this.runtimeContext.onStateUpdate();
-        this.scheduleUpdate();
-    }
+        for (const watcher of watchers) {
+            // [:watch, subjectExpr, instructions]
+            const [_, subjectExpr, instructions] = watcher;
 
-    scheduleUpdate() {
-        this.debouncedUpdate();
-    }
+            const newVal = evaluator.evaluate(subjectExpr);
+            const oldVal = prevEvaluator.evaluate(subjectExpr);
 
-    performUpdate() {
-        if (!this.element.isConnected) return; // Optimization: don't render disconnected elements
-
-        this.element.dataset.tailmixState = JSON.stringify(this._state);
-
-        const allElements = [this.element, ...this.element.querySelectorAll('[data-tailmix-element]')];
-
-        allElements.forEach(elementNode => {
-            const elementName = elementNode.dataset.tailmixElement;
-            if (!elementName) return;
-
-            const elementDef = this.definition.elements.find(e => e.name === elementName);
-            if (!elementDef) return;
-
-            let param = {};
-            const paramAttr = elementNode.dataset.tailmixParam;
-            if (paramAttr) {
-                try {
-                    param = JSON.parse(paramAttr);
-                } catch (e) {
-                    console.error("Tailmix: Invalid JSON in data-tailmix-param", e, elementNode);
-                }
+            if (JSON.stringify(newVal) !== JSON.stringify(oldVal)) {
+                this.interpreter.run(instructions, scope);
             }
-            const attributeSet = this.executor.execute(elementDef.rules, this.runtimeContext.scope, param);
-            DOMUpdater.apply(elementNode, attributeSet, elementDef.base_classes, elementDef.variant_classes || []);
+        }
+    }
+
+    runBoot() {
+        const bootInstructions = this.definition.boot;
+        if (!bootInstructions || bootInstructions.length === 0) return;
+
+        const scope = new Scope(this.state, {}, this.element, this.variants);
+        this.interpreter.run(bootInstructions, scope);
+    }
+
+    bindEvents() {
+        const elementNodes = this.element.querySelectorAll('[data-tailmix-element]');
+
+        elementNodes.forEach(node => {
+            if (this.eventControllers.has(node)) return;
+
+            const elementDef = this.elementIndex[node.dataset.tailmixElement];
+
+            if (!elementDef || !elementDef.rules) return;
+
+            const eventRules = elementDef.rules.filter(r => r[0] === 'on');
+            if (eventRules.length === 0) return;
+
+            const controller = new AbortController();
+            this.eventControllers.set(node, controller);
+
+            eventRules.forEach(rule => {
+                // [:on, "click", instructions]
+                const [_, eventName, instructions] = rule;
+
+                node.addEventListener(eventName, (event) => {
+                    let param = {};
+                    try {
+                        param = JSON.parse(node.dataset.tailmixParam || '{}');
+                    } catch (e) {}
+
+                    const scope = new Scope(this.state, param, node, this.variants);
+                    scope.locals = { event };
+
+                    this.interpreter.run(instructions, scope);
+
+                }, { signal: controller.signal });
+            });
         });
     }
 
-    loadInitialState() {
-        const initialState = JSON.parse(this.element.dataset.tailmixState || '{}');
-        const stateDefs = this.definition.states || [];
+    render() {
+        const elementNodes = this.element.querySelectorAll('[data-tailmix-element]');
+        elementNodes.forEach(node => {
+            const elementDef = this.elementIndex[node.dataset.tailmixElement];
+            if (!elementDef) return;
 
-        const buildState = (defs, stateSlice) => {
-            for (const stateDef of defs) {
-                const key = stateDef.name;
-                if (stateSlice[key] === undefined && stateDef.options.default !== undefined) {
-                    stateSlice[key] = stateDef.options.default;
-                }
-                if (stateDef.nested_states?.length > 0) {
-                    stateSlice[key] = stateSlice[key] || {};
-                    buildState(stateDef.nested_states, stateSlice[key]);
-                }
-            }
-            return stateSlice;
-        }
-        return buildState(stateDefs, initialState);
+            let param = {};
+            try { param = JSON.parse(node.dataset.tailmixParam || '{}'); } catch (e) {}
+
+            const result = Renderer.calculate(elementDef, this.state, param, node);
+            DOMPatcher.patch(node, result);
+        });
     }
 
-    decompress(node) {
-        if (typeof node !== 'object' || node === null) return node;
-        if (Array.isArray(node)) return node.map(item => this.decompress(item));
-
-        const newNode = {};
-        for (const key in node) {
-            if (Object.prototype.hasOwnProperty.call(node, key)) {
-                const value = node[key];
-                if ((key === 'base_classes' || key === 'variant_classes') && Array.isArray(value)) {
-                    newNode[key] = value.map(id => this.dictionary[id]);
-                } else if (key === 'variants' && typeof value === 'object' && value !== null) {
-                    newNode[key] = {};
-                    for (const variantKey in value) {
-                        if (Object.prototype.hasOwnProperty.call(value, variantKey)) {
-                            newNode[key][variantKey] = value[variantKey].map(id => this.dictionary[id]);
-                        }
-                    }
-                } else {
-                    newNode[key] = this.decompress(value);
-                }
-            }
-        }
-        return newNode;
+    disconnect() {
+        this.persistence.disconnect();
     }
-
 }
