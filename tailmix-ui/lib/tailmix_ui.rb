@@ -16,6 +16,7 @@ require_relative "tailmix_ui/components/badge"
 require_relative "tailmix_ui/components/card"
 require_relative "tailmix_ui/components/tabs"
 require_relative "tailmix_ui/components/modal"
+require_relative "tailmix_ui/components/dropdown"
 
 module TailmixUi
   class Error < StandardError; end
@@ -34,6 +35,8 @@ module TailmixUi
         [Components::Tabs, Components::TabsState]
       when :modal
         [Components::Modal, Components::ModalState]
+      when :dropdown
+        [Components::Dropdown, Components::DropdownState]
       else
         class_name = sym.to_s.camelize
         comp_class = Components.const_get(class_name) rescue nil
@@ -57,6 +60,7 @@ module TailmixUi
     when "TailmixUi::Components::Card" then :card
     when "TailmixUi::Components::Tabs" then :tabs
     when "TailmixUi::Components::Modal" then :modal
+    when "TailmixUi::Components::Dropdown" then :dropdown
     else
       comp_class.name.demodulize.underscore.to_sym
     end
@@ -190,6 +194,8 @@ module TailmixUi
         html_sample = render(:tabs, active: "tab1") { tab("Tab 1", id: "tab1") { "Tab 1 Content" } }
       when :modal
         html_sample = render(:modal, open: false) { "Modal Content" }
+      when :dropdown
+        html_sample = render(:dropdown) { trigger("Options"); menu { item("Edit Profile", href: "#edit") } }
       else
         html_sample = render(builder_name)
       end

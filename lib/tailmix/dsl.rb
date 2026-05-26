@@ -25,7 +25,6 @@ module Tailmix
     end
 
     def tailmix_definition
-      raise "Tailmix definition not found definition for #{name}" unless @compiled_definition
       @compiled_definition
     end
   end

@@ -12,3 +12,4 @@
 .rspec_status
 # Ignore Bundler's lock file for gems
 Gemfile.lock
+sandbox/tmp/

@@ -11,9 +11,17 @@ div class: "flex-grow flex flex-col bg-gray-950 p-6 md:p-8" do
         para "Interactive Playground for Arbre + Tailmix + Tailwind Compositions", class: "text-sm text-gray-400 mt-1"
       end
       
-      div class: "flex gap-3" do
+      div class: "flex gap-3 items-center" do
         btn "View Leads", "/leads", color: :indigo, size: :sm, icon: "spark"
-        btn "Update System", color: :danger, size: :sm, icon: "trash", id: "system-update-btn", data: { action: "click->modal-system-update#toggle" }
+        
+        dropdown align: :right, size: :md do
+          trigger "Actions Menu"
+          menu do
+            item "System Stats", href: "#"
+            item "Server Details", href: "#"
+            item "Trigger System Update", data: { action: "click->modal-system-update#toggle" }, class: "text-red-400 hover:bg-red-950/50"
+          end
+        end
       end
     end
 

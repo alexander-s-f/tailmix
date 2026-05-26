@@ -39,7 +39,8 @@ module Tailmix
         next if klass.name.nil?
 
         if klass.respond_to?(:tailmix_definition)
-          new_definitions[klass.name] = klass.tailmix_definition
+          definition = klass.tailmix_definition
+          new_definitions[klass.name] = definition if definition
         end
       end
 

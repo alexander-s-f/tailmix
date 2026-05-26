@@ -12,7 +12,7 @@ module Tailmix
 
     initializer "tailmix.assets" do |app|
       app.config.assets.paths << root.join("app/javascript").to_s
-      app.config.assets.paths << root.join("app/assets").to_s
+      app.config.assets.paths << root.join("app/assets/javascripts").to_s
 
       if app.config.respond_to?(:assets) && app.config.assets.respond_to?(:precompile)
         app.config.assets.precompile += %w[
