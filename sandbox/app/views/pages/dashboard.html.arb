@@ -1,0 +1,105 @@
+# Main Layout wrapper
+div class: "flex-grow flex flex-col bg-gray-950 p-6 md:p-8" do
+    
+    # Top bar Header
+    header class: "flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-gray-800 pb-6 mb-8" do
+      div do
+        h1 class: "text-2xl font-bold tracking-tight text-white flex items-center gap-2" do
+          span "🚀"
+          span "ERP Spark CRM Sandbox"
+        end
+        para "Interactive Playground for Arbre + Tailmix + Tailwind Compositions", class: "text-sm text-gray-400 mt-1"
+      end
+      
+      div class: "flex gap-3" do
+        btn "View Leads", "/leads", color: :indigo, size: :sm, icon: "spark"
+        btn "Update System", color: :danger, size: :sm, icon: "trash", id: "system-update-btn", data: { action: "click->modal-system-update#toggle" }
+      end
+    end
+
+    # KPI Summary Cards Grid
+    div class: "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8" do
+      kpis.each do |kpi|
+        card kpi.title do
+          div class: "flex items-baseline justify-between mt-2" do
+            span kpi.value, class: "text-2xl font-bold text-white tracking-tight"
+            badge kpi.status, size: :xs
+          end
+          div class: "text-xs mt-1 text-gray-400 flex items-center justify-between" do
+            span "Trend"
+            span kpi.change, class: "font-semibold text-emerald-400"
+          end
+        end
+      end
+    end
+
+    # Interactive Tabs Component
+    tabs active: "overview" do
+      tab "Activity Overview", id: "overview" do
+        div class: "grid grid-cols-1 lg:grid-cols-3 gap-6" do
+          
+          # Activity Log Cards
+          div class: "lg:col-span-2 space-y-4" do
+            h2 "Recent Events Log", class: "text-lg font-bold text-white mb-2"
+            
+            activities.each do |act|
+              card act.user do
+                div class: "flex justify-between items-center" do
+                  span act.action, class: "text-sm text-gray-300"
+                  div class: "flex items-center gap-3" do
+                    span act.time, class: "text-xs text-gray-500"
+                    badge act.status, size: :xs
+                  end
+                end
+              end
+            end
+          end
+
+          # System Status Card
+          div class: "space-y-4" do
+            h2 "Server Status", class: "text-lg font-bold text-white mb-2"
+            
+            card "Server Resources" do
+              line "CPU Load", system_stats[:cpu]
+              line "Memory", system_stats[:memory]
+              line "Status", badge(system_stats[:status], size: :xs)
+            end
+          end
+        end
+      end
+
+      tab "CVA Override Guide", id: "customization" do
+        card "Component Customization" do
+          h3 "How to customize Arbre components in your application:", class: "text-base font-bold text-white mb-3"
+          
+          dl class: "divide-y divide-gray-800" do
+            dt "1. Zero-code Customization"
+            dd "You can extend standard component styles by passing additional Tailwind classes via the `class` parameter: `badge :active, class: 'border shadow-lg'`"
+            
+            dt "2. Named Overrides"
+            dd "You can subclass a component and redefine its CVA state methods or DSL rules: `class SpecialButton < Button; ... end`"
+            
+            dt "3. OOP Inheritance"
+            dd "You can inherit the Arbre class of the component and extend its `build(*args)` method to inject custom DOM structures."
+          end
+        end
+      end
+    end
+
+    # System Update Modal (Tailmix-driven interactive popup)
+    modal id: "modal-system-update", open: false do
+      div class: "p-6 text-center" do
+        div class: "w-12 h-12 rounded-full bg-red-900/50 text-red-500 flex items-center justify-center mx-auto mb-4" do
+          text_node "⚠️"
+        end
+        h3 "Warning: Booting System Update", class: "text-lg font-bold text-white mb-2"
+        para "This action will reboot the background stdio MCP server and temporarily suspend debugging. Are you sure?", class: "text-sm text-gray-400 mb-6"
+        
+        div class: "flex justify-center gap-3" do
+          # Click backdrop closing is managed by tailmix automatically, close button uses custom state flip
+          btn "Cancel", color: :neutral, size: :sm, data: { action: "click->modal-system-update#close" }
+          btn "Yes, Update", color: :danger, size: :sm, icon: "trash"
+        end
+      end
+    end
+  end

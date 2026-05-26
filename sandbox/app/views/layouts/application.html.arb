@@ -1,0 +1,41 @@
+# frozen_string_literal: true
+
+html class: "dark" do
+  head do
+    title "Tailmix UI Sandbox & Playground"
+    meta name: "viewport", content: "width=device-width,initial-scale=1"
+    
+    # Rails helpers are directly accessible in Arbre!
+    text_node csrf_meta_tags
+    text_node csp_meta_tag
+    
+    # Tailwind CSS CDN
+    script src: "https://cdn.tailwindcss.com"
+    script do
+      text_node "
+        tailwind.config = {
+          theme: {
+            extend: {
+              colors: {
+                purple: {
+                  tailmix: 'rgb(147, 51, 234)'
+                }
+              }
+            }
+          }
+        }
+      ".html_safe
+    end
+    
+    # Include reactive bundle and dynamic definitions URL via helper
+    text_node tailmix_include_tags
+  end
+  
+  body class: "bg-gray-950 text-gray-100 min-h-screen font-sans antialiased" do
+    # Main container
+    div class: "min-h-screen flex flex-col" do
+      # Render the main page content through standard yield
+      text_node yield
+    end
+  end
+end
