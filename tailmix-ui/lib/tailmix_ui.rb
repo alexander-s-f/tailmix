@@ -17,6 +17,9 @@ require_relative "tailmix_ui/components/card"
 require_relative "tailmix_ui/components/tabs"
 require_relative "tailmix_ui/components/modal"
 require_relative "tailmix_ui/components/dropdown"
+require_relative "tailmix_ui/components/toast"
+require_relative "tailmix_ui/components/tooltip"
+require_relative "tailmix_ui/components/sidebar"
 
 module TailmixUi
   class Error < StandardError; end
@@ -37,6 +40,12 @@ module TailmixUi
         [Components::Modal, Components::ModalState]
       when :dropdown
         [Components::Dropdown, Components::DropdownState]
+      when :toast
+        [Components::Toast, Components::ToastState]
+      when :tooltip
+        [Components::Tooltip, Components::TooltipState]
+      when :sidebar
+        [Components::Sidebar, Components::SidebarState]
       else
         class_name = sym.to_s.camelize
         comp_class = Components.const_get(class_name) rescue nil
@@ -61,6 +70,9 @@ module TailmixUi
     when "TailmixUi::Components::Tabs" then :tabs
     when "TailmixUi::Components::Modal" then :modal
     when "TailmixUi::Components::Dropdown" then :dropdown
+    when "TailmixUi::Components::Toast" then :toast
+    when "TailmixUi::Components::Tooltip" then :tooltip
+    when "TailmixUi::Components::Sidebar" then :sidebar
     else
       comp_class.name.demodulize.underscore.to_sym
     end
@@ -196,6 +208,12 @@ module TailmixUi
         html_sample = render(:modal, open: false) { "Modal Content" }
       when :dropdown
         html_sample = render(:dropdown) { trigger("Options"); menu { item("Edit Profile", href: "#edit") } }
+      when :toast
+        html_sample = render(:toast, open: true) { body "Notification message"; close_button }
+      when :tooltip
+        html_sample = render(:tooltip) { trigger { "Hover Me" }; bubble "Info details" }
+      when :sidebar
+        html_sample = render(:sidebar, open: false) { drawer { "Drawer Panel" }; main { "Dashboard Content" } }
       else
         html_sample = render(builder_name)
       end
@@ -210,5 +228,45 @@ module TailmixUi
     end
     puts "\e[38;2;147;51;234m" + "=" * 80 + "\e[0m"
     nil
+  end
+end
+
+# Define custom builder methods for Tailmix-UI layout components to avoid scoping and collision issues
+module Arbre
+  class Element
+    module BuilderMethods
+      def toast(*args, &block)
+        tag = build_tag ::TailmixUi::Components::Toast, *args
+        if block
+          with_current_arbre_element tag do
+            tag.instance_eval(&block)
+          end
+        end
+        current_arbre_element.add_child(tag)
+        tag
+      end
+
+      def tooltip(*args, &block)
+        tag = build_tag ::TailmixUi::Components::Tooltip, *args
+        if block
+          with_current_arbre_element tag do
+            tag.instance_eval(&block)
+          end
+        end
+        current_arbre_element.add_child(tag)
+        tag
+      end
+
+      def sidebar(*args, &block)
+        tag = build_tag ::TailmixUi::Components::Sidebar, *args
+        if block
+          with_current_arbre_element tag do
+            tag.instance_eval(&block)
+          end
+        end
+        current_arbre_element.add_child(tag)
+        tag
+      end
+    end
   end
 end

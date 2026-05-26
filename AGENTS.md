@@ -141,3 +141,103 @@ npm run watch               # Watch mode
 
 - `main` — stable branch
 - `v2` — active development branch (current)
+
+---
+
+## Component Development Guide (AI Agent Handbook)
+
+This guide provides definitive rules, patterns, and architectural principles for AI agents developing new declarative, interactive components in **Tailmix UI**.
+
+### 1. The Twin-Layer Architecture
+Every interactive component in Tailmix UI has two parts:
+1.  **The State Definition (CVA Logic):** A Ruby class (suffix `State`) that encapsulates variants, reactive states, DOM elements, and declarative event/transition rules.
+    ```ruby
+    class ModalState
+      include Tailmix
+      tailmix do
+        state :open, default: false
+        element :backdrop do
+          on :click do
+            set state.open, false
+          end
+        end
+      end
+    end
+    ```
+2.  **The Arbre Component (DOM Generation):** A subclass of `BaseComponent` that renders the HTML structure and hooks up CVA classes and attributes.
+    ```ruby
+    class Modal < BaseComponent
+      def build(options = {})
+        @modal_ui = ModalState.new.ui
+        super(@modal_ui.backdrop(options)) # Set CVA root element classes
+      end
+    end
+    ```
+
+### 2. Crucial Arbre Scoping & Collision Resolution
+In Arbre, tag builder helper methods (like `div`, `span`, `btn`, `modal`) are registered on the builder context. By default, Arbre executes a component's block *after* the `build` method returns, evaluating it with `self` as the parent `Arbre::Context`.
+
+#### The HTML5 Tag Collision Problem
+If you name a nested custom builder method after a standard HTML5 element (e.g., `menu` or `content`), **Arbre will intercept it** because standard HTML5 tag methods are defined on `Arbre::Context`. The context will directly call the standard HTML5 tag builder rather than delegating it to your component, resulting in a `NoMethodError` or broken layout when you invoke component-specific methods (like `item`) inside it.
+
+#### The Safe Scoping Resolution
+To bypass this collision and guarantee that `self` inside a component block refers to the component instance (so it can find custom methods like `menu`, `trigger`, or `close_button`), **you must define a custom tag builder helper on `Arbre::Element::BuilderMethods`** instead of relying on the default `builder_method :name` macro:
+
+```ruby
+module Arbre
+  class Element
+    module BuilderMethods
+      def my_component(*args, &block)
+        # 1. Build the tag (runs tag.build without the block)
+        tag = build_tag ::TailmixUi::Components::MyComponent, *args
+        
+        # 2. Evaluate the block inside the component tag context manually
+        if block
+          with_current_arbre_element tag do
+            tag.instance_eval(&block)
+          end
+        end
+        
+        # 3. Add to the active DOM parent and return
+        current_arbre_element.add_child(tag)
+        tag
+      end
+    end
+  end
+end
+```
+
+### 3. Preserving Element Attribute Identification
+The Tailmix JavaScript runtime binds browser event listeners by looking up element definitions from `data-tailmix-element="..."` in the component's compiled JSON manifest.
+
+> [!WARNING]
+> **Component Attribute Overrides:** If you nest another Arbre component inside your trigger (e.g., rendering a custom `btn` inside a `trigger` block), the nested component's own CVA builder (like `btn(...)`) will override the `data-tailmix-element` attribute to its own identifier (e.g., `data-tailmix-element="btn"`). This prevents the JS runtime from identifying the trigger element.
+
+**Rule:** For nested action elements (such as `trigger`, `close_btn`, or `backdrop`), **always render standard HTML tags** (like `button` or `div`) styled via CVA classes, rather than using custom sub-components. This preserves the `data-tailmix-element="trigger"` identifier intact.
+
+```ruby
+def trigger(label, options = {})
+  # CORRECT: standard HTML button preserves trigger element identification
+  button @dropdown_ui.trigger(options) do
+    span label
+  end
+end
+```
+
+### 4. Explicit Hydration Rule
+A component cannot toggle states or bind events in the browser unless it is successfully hydrated. The client-side JS runtime discovers components by query-selecting `[data-tailmix-component]`.
+
+**Rule:** Every interactive layout component **must** explicitly call `set_attribute` inside its `build` method to define the CVA State class and initial state JSON on the root container element:
+
+```ruby
+def build(options = {})
+  # ... CVA setup ...
+  super(@my_ui.root(options))
+  
+  # Crucial hydration hooks!
+  set_attribute "data-tailmix-component", MyState.name
+  set_attribute "data-tailmix-state", @my_ui.state_json
+end
+```
+Without these attributes, the browser runtime will ignore the element completely.
+

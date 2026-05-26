@@ -139,6 +139,73 @@ RSpec.describe TailmixUi do
     end
   end
 
+  describe "Toast (toast)" do
+    it "compiles state definition and renders container + body + close button" do
+      context = Arbre::Context.new
+      context.instance_eval do
+        toast open: true, color: :danger do
+          body "Something went wrong!"
+          close_button
+        end
+      end
+      html = context.to_s
+
+      expect(html).to include('data-tailmix-component="TailmixUi::Components::ToastState"')
+      expect(html).to include('data-tailmix-state="{&quot;open&quot;:true}"')
+      expect(html).to include('data-tailmix-element="root"')
+      expect(html).to include('data-tailmix-element="close_btn"')
+      expect(html).to include("Something went wrong!")
+    end
+  end
+
+  describe "Tooltip (tooltip)" do
+    it "compiles active state definition and renders trigger + bubble" do
+      context = Arbre::Context.new
+      context.instance_eval do
+        tooltip do
+          trigger do
+            "Info Hover"
+          end
+          bubble "Detailed explanation text"
+        end
+      end
+      html = context.to_s
+
+      expect(html).to include('data-tailmix-component="TailmixUi::Components::TooltipState"')
+      expect(html).to include('data-tailmix-state="{&quot;active&quot;:false}"')
+      expect(html).to include('data-tailmix-element="root"')
+      expect(html).to include('data-tailmix-element="trigger"')
+      expect(html).to include('data-tailmix-element="bubble"')
+      expect(html).to include("Info Hover")
+      expect(html).to include("Detailed explanation text")
+    end
+  end
+
+  describe "Sidebar (sidebar)" do
+    it "compiles open definition and renders backdrop + drawer + main" do
+      context = Arbre::Context.new
+      context.instance_eval do
+        sidebar open: true do
+          drawer do
+            "Nav links"
+          end
+          main do
+            "Main panel"
+          end
+        end
+      end
+      html = context.to_s
+
+      expect(html).to include('data-tailmix-component="TailmixUi::Components::SidebarState"')
+      expect(html).to include('data-tailmix-state="{&quot;open&quot;:true}"')
+      expect(html).to include('data-tailmix-element="backdrop"')
+      expect(html).to include('data-tailmix-element="drawer"')
+      expect(html).to include('data-tailmix-element="main"')
+      expect(html).to include("Nav links")
+      expect(html).to include("Main panel")
+    end
+  end
+
   describe "REPL Helper Tools" do
     it "renders component HTML string using TailmixUi.render" do
       html = TailmixUi.render(:btn, "Click", color: :danger, size: :xs)
