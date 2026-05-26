@@ -13,3 +13,5 @@
 # Ignore Bundler's lock file for gems
 Gemfile.lock
 sandbox/tmp/
+sandbox/.idea
+sandbox/public/assets
