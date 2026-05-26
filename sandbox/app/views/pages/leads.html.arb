@@ -1,5 +1,5 @@
 div class: "flex-grow flex flex-col bg-gray-950 p-6 md:p-8" do
-    
+
     # Header navigation
     header class: "flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-gray-800 pb-6 mb-8" do
       div do
@@ -25,7 +25,7 @@ div class: "flex-grow flex flex-col bg-gray-950 p-6 md:p-8" do
           line "Lead ID", "##{lead.id}"
           line "Phone", lead.phone
           line "Email", lead.email
-          
+
           # Showcase semantic badge colors via StateResolver
           line "DB Status", badge(lead.status)
           line "Source", badge(lead.source, size: :xs)
@@ -44,7 +44,7 @@ div class: "flex-grow flex flex-col bg-gray-950 p-6 md:p-8" do
     modal id: "modal-add-lead", open: false do
       div class: "p-6" do
         h3 "Add New Lead", class: "text-lg font-bold text-white mb-4"
-        
+
         # Simple styled HTML form controls
         div class: "space-y-4 mb-6" do
           div do
@@ -69,7 +69,7 @@ div class: "flex-grow flex flex-col bg-gray-950 p-6 md:p-8" do
       div class: "p-6" do
         h3 "Delete Lead?", class: "text-lg font-bold text-white mb-2"
         para "Are you sure you want to delete this lead from Spark CRM? This data will be permanently erased.", class: "text-sm text-gray-400 mb-6"
-        
+
         div class: "flex justify-end gap-3" do
           btn "Cancel", color: :neutral, size: :sm, data: { action: "click->modal-delete-lead#close" }
           btn "Yes, Delete", color: :danger, size: :sm
