@@ -68,7 +68,8 @@ module TailmixUi
         resolved_value = convert_to_status(value)
         content_text = options.fetch(:titleize, true) ? resolved_value.to_s.titleize : resolved_value.to_s
 
-        resolved_state = auto_state(value, state)
+        # Resolve state using StateResolver service layer!
+        resolved_state = TailmixUi::StateResolver.resolve(value, default: state || :default)
 
         # Dynamically build state/facade using BadgeState
         @badge_ui = BadgeState.new(size: size, color: resolved_state).ui
@@ -89,49 +90,6 @@ module TailmixUi
         when false, "false", 0, "0" then "No"
         when nil then "Unset"
         else status
-        end
-      end
-
-      def auto_state(value, state)
-        return state if state.present?
-
-        case value
-        when true, "true", 1, "1" then :green
-        when false, "false", 0, "0" then :red
-        when nil then :yellow
-        else state_by_value(value)
-        end
-      end
-
-      def state_by_value(value)
-        val = value.to_s.parameterize.underscore
-        green = %w[active completed available answered applied deposit prepaid postpaid marketing initial_order delivered call_connected square no_dispute resolved current success yes good]
-        yellow = %w[pending estimate pending_approval ringing fully_refunded partially_refunded]
-        blue = %w[auto call_center outbound planned initial update technician output contract]
-        sky = %w[manager commercial high_end inbound]
-        indigo = %w[marketing_and_call_center technician_manager spark]
-        red = %w[inactive failed missed charge suspended canceled cancel no_conversion wrong_zip eta_status wrong_appliance wrong_number abandoned wrong_service fired discarded not_connected not_set unset requested no bad spam poor]
-        cyan = %w[residential composition]
-        pink = %w[rejected manual]
-        purple = %w[overdue no_call under_review]
-        fuchsia = %w[admin]
-        emerald = %w[input]
-        teal = %w[ended]
-
-        case val
-        when *green then :green
-        when *indigo then :indigo
-        when *yellow then :yellow
-        when *red then :red
-        when *blue then :blue
-        when *cyan then :cyan
-        when *pink then :pink
-        when *purple then :purple
-        when *fuchsia then :fuchsia
-        when *sky then :sky
-        when *emerald then :emerald
-        when *teal then :teal
-        else :default
         end
       end
     end

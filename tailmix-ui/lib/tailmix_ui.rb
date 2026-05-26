@@ -6,6 +6,7 @@ require "tailmix"
 
 require_relative "tailmix_ui/version"
 require_relative "tailmix_ui/configuration"
+require_relative "tailmix_ui/state_resolver"
 require_relative "tailmix_ui/base_component"
 
 require_relative "tailmix_ui/components/button"
