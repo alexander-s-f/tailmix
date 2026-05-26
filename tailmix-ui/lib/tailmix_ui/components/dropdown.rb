@@ -77,6 +77,9 @@ module TailmixUi
         super(@dropdown_ui.root(options))
         add_class(classes) if classes
 
+        set_attribute "data-tailmix-component", DropdownState.name
+        set_attribute "data-tailmix-state", @dropdown_ui.state_json
+
         # Click away backdrop
         div class: "dropdown-backdrop", "data-tailmix-element": "backdrop"
       end
