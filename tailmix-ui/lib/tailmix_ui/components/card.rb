@@ -48,7 +48,7 @@ module TailmixUi
         @variant = attributes.delete(:variant) || :default
 
         # Dynamically build state/facade using CardState
-        @card_ui = CardState.new(size: @variant).ui
+        @tailmix_ui = @card_ui = CardState.new(size: @variant).ui
 
         super(@card_ui.container(attributes))
 

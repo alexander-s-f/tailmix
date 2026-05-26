@@ -52,7 +52,7 @@ module TailmixUi
 
       def build(options = {})
         @active = options.delete(:active) || "profile"
-        @tabs_ui = TabsState.new(active: @active).ui
+        @tailmix_ui = @tabs_ui = TabsState.new(active: @active).ui
 
         super(@tabs_ui.root(options))
 

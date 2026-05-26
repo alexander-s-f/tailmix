@@ -62,7 +62,7 @@ module TailmixUi
 
       def build(options = {})
         @open = options.delete(:open) || false
-        @modal_ui = ModalState.new(open: @open).ui
+        @tailmix_ui = @modal_ui = ModalState.new(open: @open).ui
 
         super(@modal_ui.backdrop(options))
 

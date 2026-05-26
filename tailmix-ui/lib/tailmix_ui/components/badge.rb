@@ -72,7 +72,7 @@ module TailmixUi
         resolved_state = TailmixUi::StateResolver.resolve(value, default: state || :default)
 
         # Dynamically build state/facade using BadgeState
-        @badge_ui = BadgeState.new(size: size, color: resolved_state).ui
+        @tailmix_ui = @badge_ui = BadgeState.new(size: size, color: resolved_state).ui
 
         super(@badge_ui.container(options))
 

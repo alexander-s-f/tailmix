@@ -72,7 +72,7 @@ module TailmixUi
         label_text = label.is_a?(Symbol) ? label.to_s.humanize.titleize : label
 
         # Dynamically build state/facade using ButtonState
-        @btn_ui = ButtonState.new(size: size, color: color).ui
+        @tailmix_ui = @btn_ui = ButtonState.new(size: size, color: color).ui
 
         super(@btn_ui.btn(options))
 

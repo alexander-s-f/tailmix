@@ -138,4 +138,19 @@ RSpec.describe TailmixUi do
       expect(html).to include("Confirm delete")
     end
   end
+
+  describe "REPL Helper Tools" do
+    it "renders component HTML string using TailmixUi.render" do
+      html = TailmixUi.render(:btn, "Click", color: :danger, size: :xs)
+      expect(html).to include("<button ")
+      expect(html).to include("bg-red-600")
+      expect(html).to include("Click")
+      expect(html).to include("data-tailmix-dev-component")
+    end
+
+    it "runs TailmixUi.inspect successfully without crashing" do
+      expect { TailmixUi.inspect(:badge) }.to output(/Tailmix UI Component: TailmixUi::Components::Badge/).to_stdout
+      expect { TailmixUi.inspect(:btn) }.to output(/Tailmix UI Component: TailmixUi::Components::Button/).to_stdout
+    end
+  end
 end
