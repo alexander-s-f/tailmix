@@ -206,6 +206,86 @@ RSpec.describe TailmixUi do
     end
   end
 
+  describe "AccordionPanel (accordion_panel)" do
+    it "compiles state definition and renders trigger + chevron + content" do
+      context = Arbre::Context.new
+      context.instance_eval do
+        accordion_panel open: true do
+          trigger "Faq Header"
+          panel do
+            para "Faq Description"
+          end
+        end
+      end
+      html = context.to_s
+
+      expect(html).to include('data-tailmix-component="TailmixUi::Components::AccordionPanelState"')
+      expect(html).to include('data-tailmix-state="{&quot;open&quot;:true}"')
+      expect(html).to include('data-tailmix-element="root"')
+      expect(html).to include('data-tailmix-element="trigger"')
+      expect(html).to include('data-tailmix-element="chevron"')
+      expect(html).to include('data-tailmix-element="content"')
+      expect(html).to include("Faq Header")
+      expect(html).to include("Faq Description")
+    end
+  end
+
+  describe "Drawer (drawer)" do
+    it "compiles active open alignment state and renders backdrop + panel + header + body + footer" do
+      context = Arbre::Context.new
+      context.instance_eval do
+        drawer align: :left, open: true do
+          panel do
+            header "Drawer Title"
+            body "Drawer Body"
+            footer "Drawer Footer"
+          end
+        end
+      end
+      html = context.to_s
+
+      expect(html).to include('data-tailmix-component="TailmixUi::Components::DrawerState"')
+      expect(html).to include('data-tailmix-state="{&quot;open&quot;:true}"')
+      expect(html).to include('data-tailmix-element="root"')
+      expect(html).to include('data-tailmix-element="backdrop"')
+      expect(html).to include('data-tailmix-element="panel"')
+      expect(html).to include('data-tailmix-element="close_btn"')
+      expect(html).to include("Drawer Title")
+      expect(html).to include("Drawer Body")
+      expect(html).to include("Drawer Footer")
+    end
+  end
+
+  describe "Stepper (stepper)" do
+    it "compiles state definition and renders steps + buttons inside controls container" do
+      context = Arbre::Context.new
+      context.instance_eval do
+        stepper current_step: 2, max_steps: 3 do
+          step(1, "Step One")
+          step(2, "Step Two")
+          step(3, "Step Three")
+          controls do
+            prev_button "Back"
+            next_button "Forward"
+          end
+        end
+      end
+      html = context.to_s
+
+      expect(html).to include('data-tailmix-component="TailmixUi::Components::StepperState"')
+      expect(html).to include('data-tailmix-state="{&quot;current_step&quot;:2}"')
+      expect(html).to include('data-tailmix-element="root"')
+      expect(html).to include('data-tailmix-element="step_item"')
+      expect(html).to include('data-tailmix-element="prev_btn"')
+      expect(html).to include('data-tailmix-element="next_btn"')
+      expect(html).to include("Step One")
+      expect(html).to include("Step Two")
+      expect(html).to include("Step Three")
+      expect(html).to include("Back")
+      expect(html).to include("Forward")
+    end
+  end
+
   describe "REPL Helper Tools" do
     it "renders component HTML string using TailmixUi.render" do
       html = TailmixUi.render(:btn, "Click", color: :danger, size: :xs)

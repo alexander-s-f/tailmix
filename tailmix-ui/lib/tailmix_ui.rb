@@ -20,6 +20,9 @@ require_relative "tailmix_ui/components/dropdown"
 require_relative "tailmix_ui/components/toast"
 require_relative "tailmix_ui/components/tooltip"
 require_relative "tailmix_ui/components/sidebar"
+require_relative "tailmix_ui/components/accordion_panel"
+require_relative "tailmix_ui/components/drawer"
+require_relative "tailmix_ui/components/stepper"
 
 module TailmixUi
   class Error < StandardError; end
@@ -46,6 +49,12 @@ module TailmixUi
         [Components::Tooltip, Components::TooltipState]
       when :sidebar
         [Components::Sidebar, Components::SidebarState]
+      when :accordion_panel
+        [Components::AccordionPanel, Components::AccordionPanelState]
+      when :drawer
+        [Components::Drawer, Components::DrawerState]
+      when :stepper
+        [Components::Stepper, Components::StepperState]
       else
         class_name = sym.to_s.camelize
         comp_class = Components.const_get(class_name) rescue nil
@@ -73,6 +82,9 @@ module TailmixUi
     when "TailmixUi::Components::Toast" then :toast
     when "TailmixUi::Components::Tooltip" then :tooltip
     when "TailmixUi::Components::Sidebar" then :sidebar
+    when "TailmixUi::Components::AccordionPanel" then :accordion_panel
+    when "TailmixUi::Components::Drawer" then :drawer
+    when "TailmixUi::Components::Stepper" then :stepper
     else
       comp_class.name.demodulize.underscore.to_sym
     end
@@ -214,6 +226,12 @@ module TailmixUi
         html_sample = render(:tooltip) { trigger { "Hover Me" }; bubble "Info details" }
       when :sidebar
         html_sample = render(:sidebar, open: false) { drawer { "Drawer Panel" }; main { "Dashboard Content" } }
+      when :accordion_panel
+        html_sample = render(:accordion_panel, open: false) { trigger "Panel Header"; panel { "Panel Content" } }
+      when :drawer
+        html_sample = render(:drawer, open: false) { panel { header "Title"; body "Body Content"; footer "Footer Actions" } }
+      when :stepper
+        html_sample = render(:stepper, current_step: 1, max_steps: 3) { step(1, "Basic Info"); prev_button; next_button }
       else
         html_sample = render(builder_name)
       end
@@ -259,6 +277,39 @@ module Arbre
 
       def sidebar(*args, &block)
         tag = build_tag ::TailmixUi::Components::Sidebar, *args
+        if block
+          with_current_arbre_element tag do
+            tag.instance_eval(&block)
+          end
+        end
+        current_arbre_element.add_child(tag)
+        tag
+      end
+
+      def accordion_panel(*args, &block)
+        tag = build_tag ::TailmixUi::Components::AccordionPanel, *args
+        if block
+          with_current_arbre_element tag do
+            tag.instance_eval(&block)
+          end
+        end
+        current_arbre_element.add_child(tag)
+        tag
+      end
+
+      def drawer(*args, &block)
+        tag = build_tag ::TailmixUi::Components::Drawer, *args
+        if block
+          with_current_arbre_element tag do
+            tag.instance_eval(&block)
+          end
+        end
+        current_arbre_element.add_child(tag)
+        tag
+      end
+
+      def stepper(*args, &block)
+        tag = build_tag ::TailmixUi::Components::Stepper, *args
         if block
           with_current_arbre_element tag do
             tag.instance_eval(&block)
