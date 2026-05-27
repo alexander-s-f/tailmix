@@ -1,24 +1,26 @@
-# README
+# Tailmix Sandbox
 
-This README would normally document whatever steps are necessary to get the
-application up and running.
+Rails sandbox app for exercising Tailmix and Tailmix UI components in a real browser.
 
-Things you may want to cover:
+## What is here
 
-* Ruby version
+- `app/views/pages/` contains example dashboard pages built with Arbre helpers.
+- `app/components/previews/` contains Lookbook previews for the bundled Tailmix UI components.
+- `/tailmix` is mounted by the Tailmix engine to serve compiled component definitions.
+- `/lookbook` is mounted for interactive component previews.
 
-* System dependencies
+## Run locally
 
-* Configuration
+```bash
+bin/dev
+```
 
-* Database creation
+Then open:
 
-* Database initialization
+- `http://127.0.0.1:3000/` for the dashboard sandbox
+- `http://127.0.0.1:3000/leads` for the CRM leads page
+- `http://127.0.0.1:3000/lookbook` for component previews
 
-* How to run the test suite
+## Runtime files
 
-* Services (job queues, cache servers, search engines, etc.)
-
-* Deployment instructions
-
-* ...
+Local server artifacts live under `tmp/`, `log/`, and `public/assets/`. They are ignored by git and should not be committed.

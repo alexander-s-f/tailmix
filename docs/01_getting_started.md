@@ -352,5 +352,5 @@ end
 ## Next steps
 
 - [`examples/`](../examples/) — complete component implementations
-- [`docs/02_dsl_reference.md`](02_dsl_reference.md) — full DSL API reference
-- [`docs/03_js_runtime.md`](03_js_runtime.md) — how the JavaScript hydration works
+- [`tailmix-ui/lib/tailmix_ui/components/`](../tailmix-ui/lib/tailmix_ui/components/) — production-style Arbre + Tailwind components
+- [`sandbox/`](../sandbox/) — Rails and Lookbook playground for the bundled UI components

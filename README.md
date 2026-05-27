@@ -54,6 +54,31 @@ That's it. No Stimulus controller. No JS file. The same definition drives server
 
 ---
 
+## Tailmix UI
+
+This repository also includes `tailmix-ui`, a companion gem with ready-made Arbre + Tailwind components powered by Tailmix definitions. These components follow the same twin-layer pattern: a `*State` class defines variants, state, elements, and rules; the Arbre component renders DOM and adds hydration attributes.
+
+Current components:
+
+| Builder | Component |
+|---------|-----------|
+| `btn` / `button` | Button |
+| `badge` | Badge |
+| `card` | Card |
+| `tabs` | Tabs |
+| `modal` | Modal |
+| `dropdown` | Dropdown |
+| `toast` | Toast |
+| `tooltip` | Tooltip |
+| `sidebar` | Sidebar layout |
+| `accordion_panel` | Accordion panel |
+| `drawer` | Slide-over drawer |
+| `stepper` | Stepper workflow |
+
+The Rails sandbox under `sandbox/` includes Lookbook previews for these components.
+
+---
+
 ## Installation
 
 ```bash
@@ -286,7 +311,7 @@ end
 
 ## Examples
 
-See the [`examples/`](examples/) directory for complete, working components:
+See the [`examples/`](examples/) directory for complete Tailmix engine examples, and `tailmix-ui/lib/tailmix_ui/components/` for production-style Arbre component implementations:
 
 | Example | Concepts |
 |---------|----------|
@@ -314,6 +339,18 @@ The compiled definition is a plain Ruby Hash (also valid JSON). Both the Ruby in
 ---
 
 ## Contributing
+
+Useful local commands:
+
+```bash
+bundle exec rspec
+
+cd tailmix-ui
+bundle exec rspec
+
+cd ../sandbox
+bin/dev
+```
 
 Bug reports and pull requests are welcome on [GitHub](https://github.com/alexander-s-f/tailmix).
 

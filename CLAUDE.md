@@ -62,6 +62,18 @@ app/
 
 config/routes.rb           # Mounts the definitions route
 
+tailmix-ui/
+  lib/tailmix_ui/
+    components/        # Pre-built Arbre + Tailwind components powered by Tailmix
+    base_component.rb  # Shared Arbre component base with development metadata
+    mcp_server.rb      # Local helper server for component inspection/rendering
+  spec/
+    ui_components_spec.rb
+
+sandbox/
+  app/components/previews/  # Lookbook previews for Tailmix UI components
+  app/views/pages/          # Rails sandbox pages using the UI kit
+
 examples/
   tabs.rb / tabs.html.arb  # Working example
 
@@ -122,6 +134,12 @@ bundle install
 bundle exec rspec           # Run tests
 bundle exec rubocop         # Lint (rubocop-rails-omakase, double-quoted strings)
 
+# Tailmix UI gem
+(cd tailmix-ui && bundle exec rspec)  # Run Tailmix UI component specs
+
+# Sandbox Rails app
+(cd sandbox && bin/dev)     # Run the local Rails/Lookbook sandbox
+
 # JavaScript
 npm install
 npm run build               # Production bundle → app/assets/javascripts/tailmix/tailmix.bundle.js
@@ -139,5 +157,4 @@ npm run watch               # Watch mode
 
 ## Branches
 
-- `main` — stable branch
-- `v2` — active development branch (current)
+- `main` — stable branch and active development branch
